@@ -20,6 +20,8 @@
 
 #include "clang/AST/Attr.h"
 
+#include <iostream>
+
 using namespace clang;
 using namespace ento;
 
