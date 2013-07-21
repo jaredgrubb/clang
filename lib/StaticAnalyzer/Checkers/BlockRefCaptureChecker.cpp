@@ -27,7 +27,7 @@ using namespace ento;
 
 namespace {
 
-class BlockRefCaptureChecker : public Checker< check::PreCall {
+class BlockRefCaptureChecker : public Checker< check::PreCall > {
 
   mutable IdentifierInfo *II_dispatch_async;
 
@@ -77,7 +77,7 @@ void BlockRefCaptureChecker::checkPreCall(const CallEvent &Call,
     if (!BE) 
       return;
 
-    checkBlockForBadCapture(BE);
+    checkBlockForBadCapture(BE, CheckerContext);
     return;
   }
 }
