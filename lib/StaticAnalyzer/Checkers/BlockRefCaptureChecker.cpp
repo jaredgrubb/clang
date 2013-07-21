@@ -24,7 +24,6 @@ using namespace clang;
 using namespace ento;
 
 namespace {
-typedef SmallVector<SymbolRef, 2> SymbolVector;
 
 class BlockRefCaptureChecker : public Checker< check::PreCall {
 
@@ -34,13 +33,15 @@ class BlockRefCaptureChecker : public Checker< check::PreCall {
 
   void initIdentifierInfo(ASTContext &Ctx) const;
 
+  void checkBlockForBadCapture(const BlockExpr *Block, CheckerContext &C) const;
+
   void reportRefCaptureBug(SymbolRef FileDescSym,
                          const CallEvent &Call,
                          CheckerContext &C) const;
 public:
   BlockRefCaptureChecker();
 
-  /// Process fclose.
+  /// Process dispatch_async.
   void checkPreCall(const CallEvent &Call, CheckerContext &C) const;
 };
 
@@ -59,143 +60,27 @@ void BlockRefCaptureChecker::checkPreCall(const CallEvent &Call,
   if (!Call.isGlobalCFunction())
     return;
 
-  if (Call.getCalleeIdentifier() != II_dispatch_async)
+  // Check API that process blocks asynchronously:
+
+  if (Call.getCalleeIdentifier() == II_dispatch_async) {
+    if (Call.getNumArgs() != 2)
+      return;
+
+    // Get the symbolic value corresponding to the file handle.
+    const Expr * E = Call.getArgExpr(1);
+    if (!E)
+      return;
+
+    const BlockExpr * BE = dyn_cast<BlockExpr>(E);
+    if (!BE) 
+      return;
+
+    checkBlockForBadCapture(BE);
     return;
-
-  if (Call.getNumArgs() != 2)
-    return;
-
-  // Get the symbolic value corresponding to the file handle.
-  SymbolRef FileDesc = Call.getArgSVal(0).getAsSymbol();
-  if (!FileDesc)
-    return;
-
-  // Check if the stream has already been closed.
-  ProgramStateRef State = C.getState();
-  const StreamState *SS = State->get<StreamMap>(FileDesc);
-  if (SS && SS->isClosed()) {
-    reportDoubleClose(FileDesc, Call, C);
-    return;
-  }
-
-  // Generate the next transition, in which the stream is closed.
-  State = State->set<StreamMap>(FileDesc, StreamState::getClosed());
-  C.addTransition(State);
-}
-
-static bool isLeaked(SymbolRef Sym, const StreamState &SS,
-                     bool IsSymDead, ProgramStateRef State) {
-  if (IsSymDead && SS.isOpened()) {
-    // If a symbol is NULL, assume that fopen failed on this path.
-    // A symbol should only be considered leaked if it is non-null.
-    ConstraintManager &CMgr = State->getConstraintManager();
-    ConditionTruthVal OpenFailed = CMgr.isNull(State, Sym);
-    return !OpenFailed.isConstrainedTrue();
-  }
-  return false;
-}
-
-void BlockRefCaptureChecker::checkDeadSymbols(SymbolReaper &SymReaper,
-                                           CheckerContext &C) const {
-  ProgramStateRef State = C.getState();
-  SymbolVector LeakedStreams;
-  StreamMapTy TrackedStreams = State->get<StreamMap>();
-  for (StreamMapTy::iterator I = TrackedStreams.begin(),
-                             E = TrackedStreams.end(); I != E; ++I) {
-    SymbolRef Sym = I->first;
-    bool IsSymDead = SymReaper.isDead(Sym);
-
-    // Collect leaked symbols.
-    if (isLeaked(Sym, I->second, IsSymDead, State))
-      LeakedStreams.push_back(Sym);
-
-    // Remove the dead symbol from the streams map.
-    if (IsSymDead)
-      State = State->remove<StreamMap>(Sym);
-  }
-
-  ExplodedNode *N = C.addTransition(State);
-  reportLeaks(LeakedStreams, C, N);
-}
-
-void BlockRefCaptureChecker::reportDoubleClose(SymbolRef FileDescSym,
-                                            const CallEvent &Call,
-                                            CheckerContext &C) const {
-  // We reached a bug, stop exploring the path here by generating a sink.
-  ExplodedNode *ErrNode = C.generateSink();
-  // If we've already reached this node on another path, return.
-  if (!ErrNode)
-    return;
-
-  // Generate the report.
-  BugReport *R = new BugReport(*DoubleCloseBugType,
-      "Closing a previously closed file stream", ErrNode);
-  R->addRange(Call.getSourceRange());
-  R->markInteresting(FileDescSym);
-  C.emitReport(R);
-}
-
-void BlockRefCaptureChecker::reportLeaks(SymbolVector LeakedStreams,
-                                               CheckerContext &C,
-                                               ExplodedNode *ErrNode) const {
-  // Attach bug reports to the leak node.
-  // TODO: Identify the leaked file descriptor.
-  for (SmallVectorImpl<SymbolRef>::iterator
-         I = LeakedStreams.begin(), E = LeakedStreams.end(); I != E; ++I) {
-    BugReport *R = new BugReport(*LeakBugType,
-        "Opened file is never closed; potential resource leak", ErrNode);
-    R->markInteresting(*I);
-    C.emitReport(R);
   }
 }
 
-bool BlockRefCaptureChecker::guaranteedNotToCloseFile(const CallEvent &Call) const{
-  // If it's not in a system header, assume it might close a file.
-  if (!Call.isInSystemHeader())
-    return false;
-
-  // Handle cases where we know a buffer's /address/ can escape.
-  if (Call.argumentsMayEscape())
-    return false;
-
-  // Note, even though fclose closes the file, we do not list it here
-  // since the checker is modeling the call.
-
-  return true;
-}
-
-// If the pointer we are tracking escaped, do not track the symbol as
-// we cannot reason about it anymore.
-ProgramStateRef
-BlockRefCaptureChecker::checkPointerEscape(ProgramStateRef State,
-                                        const InvalidatedSymbols &Escaped,
-                                        const CallEvent *Call,
-                                        PointerEscapeKind Kind) const {
-  // If we know that the call cannot close a file, there is nothing to do.
-  if (Kind == PSK_DirectEscapeOnCall && guaranteedNotToCloseFile(*Call)) {
-    return State;
-  }
-
-  for (InvalidatedSymbols::const_iterator I = Escaped.begin(),
-                                          E = Escaped.end();
-                                          I != E; ++I) {
-    SymbolRef Sym = *I;
-
-    // The symbol escaped. Optimistically, assume that the corresponding file
-    // handle will be closed somewhere else.
-    State = State->remove<StreamMap>(Sym);
-  }
-  return State;
-}
-
-void BlockRefCaptureChecker::initIdentifierInfo(ASTContext &Ctx) const {
-  if (IIfopen)
-    return;
-  IIfopen = &Ctx.Idents.get("fopen");
-  IIfclose = &Ctx.Idents.get("fclose");
-}
-
-static const VarDecl * sFindProblemVarDecl(const VarDecl *VD)
+static const VarDecl *sFindProblemVarDecl(const VarDecl *VD)
 {
     if (!VD) {
       std::cout << "  [ ok ] VD = null." << std::endl;
@@ -245,7 +130,7 @@ static const VarDecl * sFindProblemVarDecl(const VarDecl *VD)
     return sFindProblemVarDecl(dyn_cast<VarDecl>(DRE->getDecl()));
 }
 
-void BlockRefCaptureChecker::checkPostStmt(const BlockExpr *BE, CheckerContext &C) const {
+void BlockRefCaptureChecker::checkBlockForBadCapture(const BlockExpr *Block, CheckerContext &C) const {
    if (!BE->getBlockDecl()->hasCaptures())
     return;
 
@@ -277,37 +162,45 @@ void BlockRefCaptureChecker::checkPostStmt(const BlockExpr *BE, CheckerContext &
       continue;
     }
 
-    std::cout << "  -- DANGER WILL ROBINSON!" << std::endl;
-
-
-    // // Get the VarRegion associated with VD in the local stack frame.
-    // if (Optional<UndefinedVal> V =
-    //       state->getSVal(I.getOriginalRegion()).getAs<UndefinedVal>()) {
-    //   if (ExplodedNode *N = C.generateSink()) {
-    //     if (!BT)
-    //       BT.reset(new BuiltinBug("uninitialized variable captured by block"));
-
-    //     // Generate a bug report.
-    //     SmallString<128> buf;
-    //     llvm::raw_svector_ostream os(buf);
-
-    //     os << "Variable '" << VD->getName()
-    //        << "' is uninitialized when captured by block";
-
-    //     BugReport *R = new BugReport(*BT, os.str(), N);
-    //     if (const Expr *Ex = FindBlockDeclRefExpr(BE->getBody(), VD))
-    //       R->addRange(Ex->getSourceRange());
-    //     R->addVisitor(new FindLastStoreBRVisitor(*V, VR,
-    //                                          /*EnableNullFPSuppression*/false));
-    //     R->disablePathPruning();
-    //     // need location of block
-    //     C.emitReport(R);
-    //   }
-    // }
-  }
+    // problem!
 }
 
+// void BlockRefCaptureChecker::reportDoubleClose(SymbolRef FileDescSym,
+//                                             const CallEvent &Call,
+//                                             CheckerContext &C) const {
+//   // We reached a bug, stop exploring the path here by generating a sink.
+//   ExplodedNode *ErrNode = C.generateSink();
+//   // If we've already reached this node on another path, return.
+//   if (!ErrNode)
+//     return;
 
+//   // Generate the report.
+//   BugReport *R = new BugReport(*DoubleCloseBugType,
+//       "Closing a previously closed file stream", ErrNode);
+//   R->addRange(Call.getSourceRange());
+//   R->markInteresting(FileDescSym);
+//   C.emitReport(R);
+// }
+
+// void BlockRefCaptureChecker::reportLeaks(SymbolVector LeakedStreams,
+//                                                CheckerContext &C,
+//                                                ExplodedNode *ErrNode) const {
+//   // Attach bug reports to the leak node.
+//   // TODO: Identify the leaked file descriptor.
+//   for (SmallVectorImpl<SymbolRef>::iterator
+//          I = LeakedStreams.begin(), E = LeakedStreams.end(); I != E; ++I) {
+//     BugReport *R = new BugReport(*LeakBugType,
+//         "Opened file is never closed; potential resource leak", ErrNode);
+//     R->markInteresting(*I);
+//     C.emitReport(R);
+//   }
+// }
+
+void BlockRefCaptureChecker::initIdentifierInfo(ASTContext &Ctx) const {
+  if (II_dispatch_async)
+    return;
+  II_dispatch_async = &Ctx.Idents.get("dispatch_async");
+}
 
 void ento::registerBlockRefCaptureChecker(CheckerManager &mgr) {
   mgr.registerChecker<BlockRefCaptureChecker>();
