@@ -77,7 +77,7 @@ void BlockRefCaptureChecker::checkPreCall(const CallEvent &Call,
     if (!BE) 
       return;
 
-    checkBlockForBadCapture(BE, CheckerContext);
+    checkBlockForBadCapture(BE, C);
     return;
   }
 }
@@ -132,7 +132,7 @@ static const VarDecl *sFindProblemVarDecl(const VarDecl *VD)
     return sFindProblemVarDecl(dyn_cast<VarDecl>(DRE->getDecl()));
 }
 
-void BlockRefCaptureChecker::checkBlockForBadCapture(const BlockExpr *Block, CheckerContext &C) const {
+void BlockRefCaptureChecker::checkBlockForBadCapture(const BlockExpr *BE, CheckerContext &C) const {
    if (!BE->getBlockDecl()->hasCaptures())
     return;
 
