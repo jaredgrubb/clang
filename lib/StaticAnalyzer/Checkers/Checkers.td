@@ -196,6 +196,10 @@ def NewDeleteLeaksChecker : Checker<"NewDeleteLeaks">,
   HelpText<"Check for memory leaks. Traces memory managed by new/delete.">, 
   DescFile<"MallocChecker.cpp">;
 
+def BlockRefCaptureChecker : Checker<"BlockRefCapture">,
+  HelpText<"Check for blocks that capture-by-reference for stack variables.">,
+  DescFile<"BlockRefCaptureChecker.cpp">;
+
 } // end: "alpha.cplusplus"
 
 //===----------------------------------------------------------------------===//
