@@ -165,6 +165,7 @@ void BlockRefCaptureChecker::checkBlockForBadCapture(const BlockExpr *BE, Checke
     }
 
     // problem!
+  }
 }
 
 // void BlockRefCaptureChecker::reportDoubleClose(SymbolRef FileDescSym,
