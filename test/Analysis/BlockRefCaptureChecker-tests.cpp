@@ -8,6 +8,11 @@ void dispatch_sync(const void* queue, dispatch_block_t block);
 
 static const void* const DUMMY_QUEUE = 0;
 
+// helper types
+struct Base {};
+struct Derived : Base {};
+Derived createObject();
+
 void checkCapture_Nothing() {
   dispatch_async(DUMMY_QUEUE, ^{ // no warning
     int a = 1;
@@ -15,29 +20,44 @@ void checkCapture_Nothing() {
   });
 }
 
-void checkCapture_Local() {
+void checkCapture_StackVar() {
   int a = 7;
   dispatch_async(DUMMY_QUEUE, ^{ // no warning
     (void)a;
   });
 }
 
-void checkCapture_LocalByRef() {
+void checkCapture_RefToStackVar() {
   int a = 7;
-  const int& a_ref = a;
-  dispatch_async(DUMMY_QUEUE, ^{ // expected-warning {{Capturing}}
+  int& a_ref = a;
+  dispatch_async(DUMMY_QUEUE, ^{ // expected-warning {{Variable 'a_ref' is captured as a reference-type to a variable that may not exist when the block runs}}
     (void)a_ref;
   });
 }
 
-void checkCapture_ParamRef(int param) {
+void checkCapture_RefToStackVarViaImplicitCast() {
+  int a = 7;
+  const int& a_ref = a;
+  dispatch_async(DUMMY_QUEUE, ^{ // expected-warning {{Variable 'a_ref' is captured as a reference-type to a variable that may not exist when the block runs}}
+    (void)a_ref;
+  });
+}
+
+void checkCapture_RefToTemporary() {
+  int const& a_ref = 7;
+  dispatch_async(DUMMY_QUEUE, ^{ // expected-warning {{Variable 'a_ref' is captured as a reference-type to a variable that may not exist when the block runs}}
+    (void)a_ref;
+  });
+}
+
+void checkCapture_Param(int param) {
   dispatch_async(DUMMY_QUEUE, ^{ // no warning
     (void)param;
   });
 }
 
-void checkCapture_ParamRef(const int& param_ref) {
-  dispatch_async(DUMMY_QUEUE, ^{ // expected-warning {{Capturing}}
+void checkCapture_RefToParam(const int& param_ref) {
+  dispatch_async(DUMMY_QUEUE, ^{ // expected-warning {{Variable 'param_ref' is captured as a reference-type to a variable that may not exist when the block runs}}
     (void)param_ref;
   });
 }
