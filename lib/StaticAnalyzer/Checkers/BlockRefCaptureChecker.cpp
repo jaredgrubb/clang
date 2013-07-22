@@ -122,12 +122,16 @@ static const VarDecl *sFindProblemVarDecl(const VarDecl *VD)
     std::cout << "  [ .. ] has initialization value:" << std::endl;
     Init->dump();
 
+    // recurse on the reference type
     if (const DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(Init)) {
       return sFindProblemVarDecl(dyn_cast<VarDecl>(DRE->getDecl()));      
     }
 
-    if (const DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(Init)) {
-      return sFindProblemVarDecl(dyn_cast<VarDecl>(DRE->getDecl()));      
+    // reference to temporary expression
+    if (const MaterializeTemporaryExpr *MTE = dyn_cast<MaterializeTemporaryExpr>(Init)) {
+      if (MTE->getStorageDuration()==SD_Automatic) {
+        return VD;
+      }
     }
 
     return NULL;
@@ -176,6 +180,9 @@ void BlockRefCaptureChecker::checkBlockForBadCapture(const BlockExpr *BE, Checke
     ExplodedNode *N = C.addTransition(state);
     BugReport *Bug = new BugReport(*BT_RefCaptureBug, os.str(), N);
     Bug->addRange(VD->getSourceRange());
+    if (VD != ProbVD) {
+      Bug->addRange(ProbVD->getSourceRange());      
+    }
     Bug->setDeclWithIssue(ProbVD);
     C.emitReport(Bug);
   }

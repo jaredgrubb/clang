@@ -50,6 +50,13 @@ void checkCapture_RefToTemporary() {
   });
 }
 
+void checkCapture_RefToTemporaryReturnValue() {
+  Derived const& ref_to_temp_obj = createObject();
+  dispatch_async(DUMMY_QUEUE, ^{ // expected-warning {{Variable 'ref_to_temp_obj' is captured as a reference-type to a variable that may not exist when the block runs}}
+    (void)ref_to_temp_obj;
+  });
+}
+
 void checkCapture_Param(int param) {
   dispatch_async(DUMMY_QUEUE, ^{ // no warning
     (void)param;
