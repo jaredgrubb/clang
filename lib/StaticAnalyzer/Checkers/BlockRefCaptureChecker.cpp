@@ -182,7 +182,7 @@ void BlockRefCaptureChecker::checkBlockForBadCapture(const BlockExpr *BE, Checke
     PathDiagnosticLocation Loc =  PathDiagnosticLocation::createBegin(
             ProbVD, C.getSourceManager());
 
-    BugReport *Bug = new BugReport(*BT_RefCaptureBug, os.str(), N, Loc, VD);
+    BugReport *Bug = new BugReport(*BT_RefCaptureBug, os.str(), Loc);
     Bug->markInteresting(VR);
     Bug->addRange(VD->getSourceRange());
     C.emitReport(Bug);
