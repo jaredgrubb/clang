@@ -31,7 +31,7 @@ class BlockRefCaptureChecker : public Checker< check::PreCall > {
 
   mutable IdentifierInfo *II_dispatch_async;
 
-  OwningPtr<BugType> RefCaptureBugType;
+  OwningPtr<BugType> BT_RefCaptureBug;
 
   void initIdentifierInfo(ASTContext &Ctx) const;
 
@@ -51,7 +51,7 @@ public:
 
 BlockRefCaptureChecker::BlockRefCaptureChecker() : II_dispatch_async(0) {
   // Initialize the bug types.
-  RefCaptureBugType.reset(new BugType("Capture-by-reference warning",
+  BT_RefCaptureBug.reset(new BugType("Capture-by-reference warning",
                                        "Block capture error"));
 }
 
@@ -164,10 +164,16 @@ void BlockRefCaptureChecker::checkBlockForBadCapture(const BlockExpr *BE, Checke
       continue;
     }
 
+    SmallString<128> buf;
+    llvm::raw_svector_ostream os(buf);
+
+    os << "Variable '" << VD->getName() 
+       << "' is captured as a reference-type to a variable "
+          "that may not exist when the block runs.";
+
     ProgramStateRef state = C.getState();
     ExplodedNode *N = C.addTransition(state);
-    BugReport *R = new BugReport(*RefCaptureBugType,
-        RefCaptureBugType->getDescription(), N);
+    BugReport *R = new BugReport(*BT_RefCaptureBug, os.str(), N);
     C.emitReport(R);
   }
 }
