@@ -44,9 +44,9 @@ void checkCapture_RefToStackVarViaImplicitCast() {
 }
 
 void checkCapture_RefToTemporary() {
-  int const& a_ref = 7;
-  dispatch_async(DUMMY_QUEUE, ^{ // expected-warning {{Variable 'a_ref' is captured as a reference-type to a variable that may not exist when the block runs}}
-    (void)a_ref;
+  int const& ref_to_temp = 7;
+  dispatch_async(DUMMY_QUEUE, ^{ // expected-warning {{Variable 'ref_to_temp' is captured as a reference-type to a variable that may not exist when the block runs}}
+    (void)ref_to_temp;
   });
 }
 
