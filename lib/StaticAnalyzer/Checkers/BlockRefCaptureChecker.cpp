@@ -180,6 +180,7 @@ void BlockRefCaptureChecker::checkBlockForBadCapture(const BlockExpr *BE, Checke
     ExplodedNode *N = C.addTransition(state);
     BugReport *Bug = new BugReport(*BT_RefCaptureBug, os.str(), N);
     Bug->markInteresting(VR);
+    Bug->addRegion(VD->getSourceRange());
     C.emitReport(Bug);
   }
 }
