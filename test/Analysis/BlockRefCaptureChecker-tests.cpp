@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fblocks -analyze -analyzer-checker=core,alpha.cplusplus.BlockRefCapture -verify %s
+// RUN: %clang_cc1 -fblocks -std=c++11 -analyze -analyzer-checker=core,alpha.cplusplus.BlockRefCapture -verify %s
 
 // Fake the signatures of the GCD functions:
 //   -- note we use NULL for queues because it's easy and doesnt affect any of our checks

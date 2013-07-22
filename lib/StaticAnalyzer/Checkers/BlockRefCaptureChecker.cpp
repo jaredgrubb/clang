@@ -176,9 +176,6 @@ void BlockRefCaptureChecker::checkBlockForBadCapture(const BlockExpr *BE, Checke
        << "' is captured as a reference-type to a variable "
           "that may not exist when the block runs.";
 
-    ProgramStateRef state = C.getState();
-    ExplodedNode *N = C.addTransition(state);
-
     PathDiagnosticLocation Loc =  PathDiagnosticLocation::create(
             VD, C.getSourceManager());
 
