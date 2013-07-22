@@ -29,3 +29,15 @@ void checkCapture_LocalByRef() {
     (void)a_ref;
   });
 }
+
+void checkCapture_ParamRef(int param) {
+  dispatch_async(DUMMY_QUEUE, ^{ // no warning
+    (void)param;
+  });
+}
+
+void checkCapture_ParamRef(const int& param_ref) {
+  dispatch_async(DUMMY_QUEUE, ^{ // expected-warning {{Capturing}}
+    (void)param_ref;
+  });
+}

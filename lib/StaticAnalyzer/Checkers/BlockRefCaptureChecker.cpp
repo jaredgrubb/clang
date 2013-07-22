@@ -117,19 +117,20 @@ static const VarDecl *sFindProblemVarDecl(const VarDecl *VD)
       std::cout << "  [ ok ] no initializer. done." << std::endl;
       return NULL;
     }
+    Init = Init->IgnoreImpCasts();
 
     std::cout << "  [ .. ] has initialization value:" << std::endl;
     Init->dump();
 
-    const DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(Init);
-    if (!DRE) {
-      std::cout << "  [ ok ] no DRE. done." << std::endl;
-      return NULL;
+    if (const DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(Init)) {
+      return sFindProblemVarDecl(dyn_cast<VarDecl>(DRE->getDecl()));      
     }
-    std::cout << "  [ .. ] has DeclRefExpr:" << std::endl;
-    DRE->dump();
 
-    return sFindProblemVarDecl(dyn_cast<VarDecl>(DRE->getDecl()));
+    if (const DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(Init)) {
+      return sFindProblemVarDecl(dyn_cast<VarDecl>(DRE->getDecl()));      
+    }
+
+
 }
 
 void BlockRefCaptureChecker::checkBlockForBadCapture(const BlockExpr *BE, CheckerContext &C) const {
