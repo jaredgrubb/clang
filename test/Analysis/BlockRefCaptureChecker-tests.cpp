@@ -12,6 +12,7 @@ static const void* const DUMMY_QUEUE = 0;
 struct Base {};
 struct Derived : Base {};
 Derived createObject();
+Derived const& getMaybeGlobal(); // cant infer anything about this return value
 
 void checkCapture_Nothing() {
   dispatch_async(DUMMY_QUEUE, ^{ // no warning
@@ -54,6 +55,20 @@ void checkCapture_RefToTemporaryReturnValue() {
   Derived const& ref_to_temp_obj = createObject();
   dispatch_async(DUMMY_QUEUE, ^{ // expected-warning {{Variable 'ref_to_temp_obj' is captured as a reference-type to a variable that may not exist when the block runs}}
     (void)ref_to_temp_obj;
+  });
+}
+
+void checkCapture_RvalRefToTemporaryReturnValue() {
+  Derived&& rval_ref_to_temp = createObject();
+  dispatch_async(DUMMY_QUEUE, ^{ // expected-warning {{Variable 'rval_ref_to_temp' is captured as a reference-type to a variable that may not exist when the block runs}}
+    (void)rval_ref_to_temp;
+  });
+}
+
+void checkCapture_RefToUnknownReturnValue() {
+  Derived const& ref_to_ambig_obj = getMaybeGlobal();
+  dispatch_async(DUMMY_QUEUE, ^{ // no warning
+    (void)ref_to_ambig_obj;
   });
 }
 
