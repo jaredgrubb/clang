@@ -49,18 +49,20 @@ public:
 
 } // end anonymous namespace
 
-BlockRefCaptureChecker::BlockRefCaptureChecker() : II_dispatch_async(0) {
+BlockRefCaptureChecker::BlockRefCaptureChecker() 
+: II_dispatch_async(0) 
+{
   // Initialize the bug types.
   BT_RefCaptureBug.reset(new BugType("Capture-by-reference warning",
-                                       "Block capture error"));
+                                    "Block capture error"));
 }
 
 void BlockRefCaptureChecker::checkPreCall(const CallEvent &Call,
                                        CheckerContext &C) const {
-  initIdentifierInfo(C.getASTContext());
-
   if (!Call.isGlobalCFunction())
     return;
+
+  initIdentifierInfo(C.getASTContext());
 
   // Check API that process blocks asynchronously:
 
@@ -82,65 +84,62 @@ void BlockRefCaptureChecker::checkPreCall(const CallEvent &Call,
   }
 }
 
+// Figure out if a VarDecl is a problem, and return the problem VD if so
+// Return NULL if the VarDecl is no issue
 static const VarDecl *sFindProblemVarDecl(const VarDecl *VD)
 {
-    if (!VD) {
-      std::cout << "  [ ok ] VD = null." << std::endl;
-      return NULL;
-    }
-    std::cout << "  [ .. ] VarDecl dump:" << std::endl;
-    VD->dump();
-    std::cout << "  [ .. ] with type:" << std::endl;
-    VD->getType()->dump();
-
-    // if we hit a __block type or a non-local variable, we're good
-    if (VD->getAttr<BlocksAttr>() || !VD->hasLocalStorage()) {
-      std::cout << "  [ ok ] __block or non-local." << std::endl;
-      return NULL;
-    }
-
-    // if we hit a non-ref type, then we dont care
-    if (!VD->getType()->isReferenceType()) {
-      std::cout << "  [!!!!] resolved to reference-to-local value!" << std::endl;
-      return VD;
-    }
-
-    // if we reference a parameter variable, we have a problem
-    if (dyn_cast<ParmVarDecl>(VD)) {
-      std::cout << "  [!!!!] a parameter value!" << std::endl;
-      return VD;
-    }
-
-    // figure out what the initialization for the reference is:
-    Expr const* Init = VD->getInit();
-    if (!Init) {
-      std::cout << "  [ ok ] no initializer. done." << std::endl;
-      return NULL;
-    }
-    Init = Init->IgnoreImpCasts();
-
-    std::cout << "  [ .. ] has initialization value:" << std::endl;
-    Init->dump();
-
-    // recurse on the reference type
-    if (const DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(Init)) {
-      return sFindProblemVarDecl(dyn_cast<VarDecl>(DRE->getDecl()));      
-    }
-
-    // reference to temporary expression
-    if (const MaterializeTemporaryExpr *MTE = dyn_cast<MaterializeTemporaryExpr>(Init)) {
-      if (MTE->getStorageDuration()==SD_Automatic) {
-        return VD;
-      }
-    }
-
+  if (!VD) {
     return NULL;
+  }
+
+  // if we hit a __block type or a non-local variable, we're good
+  if (VD->getAttr<BlocksAttr>() || !VD->hasLocalStorage()) {
+    return NULL;
+  }
+
+  // if we hit a non-ref type then we have a problem (because it has local storage)
+  if (!VD->getType()->isReferenceType()) {
+    return VD;
+  }
+
+  // In general, we cant know if a passed-in paramter is local or global, but
+  // we take the pessimistic view that it probably is a temporary and report it
+  if (dyn_cast<ParmVarDecl>(VD)) {
+    return VD;
+  }
+
+  // Use the expression that the reference points to and figure out if it's a problem:
+  Expr const* Init = VD->getInit();
+  if (!Init) {
+    return NULL;
+  }
+
+  // ignore any implicit casts (eg, upcasting) that dont affect our analysis
+  Init = Init->IgnoreImpCasts();
+
+  // if we have a ref-to-ref, the recurse on its reference value
+  if (const DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(Init)) {
+    return sFindProblemVarDecl(dyn_cast<VarDecl>(DRE->getDecl()));      
+  }
+
+  // reference to temporary expression (eg return value) cant have local storage
+  if (const MaterializeTemporaryExpr *MTE = dyn_cast<MaterializeTemporaryExpr>(Init)) {
+    if (MTE->getStorageDuration()==SD_Automatic) {
+      return VD;
+    }
+    return NULL;
+  }
+
+  // all other cases are not handled and presumed safe
+  return NULL;
 }
 
 void BlockRefCaptureChecker::checkBlockForBadCapture(const BlockExpr *BE, CheckerContext &C) const {
-   if (!BE->getBlockDecl()->hasCaptures())
+  // no captures, no problem.
+  if (!BE->getBlockDecl()->hasCaptures())
     return;
 
+  // otherwise check every variable captured in the block
   ProgramStateRef state = C.getState();
   const BlockDataRegion *R =
     cast<BlockDataRegion>(state->getSVal(BE,
@@ -150,22 +149,16 @@ void BlockRefCaptureChecker::checkBlockForBadCapture(const BlockExpr *BE, Checke
                                             E = R->referenced_vars_end();
 
   for (; I != E; ++I) {
-    // This VarRegion is the region associated with the block; we need
-    // the one associated with the encompassing context.
     const VarRegion *VR = I.getOriginalRegion();
     const VarDecl *VD = VR->getDecl();
 
-    std::cout << std::endl << "^^^ Check block var named: " << VD->getName().data() << std::endl;
-
-    // if we hit a non-ref type, then we dont care
+    // we only care about reference captures
     if (!VD->getType()->isReferenceType()) {
-      std::cout << "  [ ok ] not ref type." << std::endl;
       continue;
     }
 
     const VarDecl *ProbVD = sFindProblemVarDecl(VD);
     if (!ProbVD) {
-      std::cout << "  [    ] continue." << std::endl;
       continue;
     }
 
@@ -173,7 +166,7 @@ void BlockRefCaptureChecker::checkBlockForBadCapture(const BlockExpr *BE, Checke
     llvm::raw_svector_ostream os(buf);
 
     os << "Variable '" << VD->getName() 
-       << "' is captured as a reference-type to a variable "
+       << "' is captured as a reference-type to a value "
           "that may not exist when the block runs.";
 
     PathDiagnosticLocation Loc =  PathDiagnosticLocation::create(
@@ -184,37 +177,6 @@ void BlockRefCaptureChecker::checkBlockForBadCapture(const BlockExpr *BE, Checke
     C.emitReport(Bug);
   }
 }
-
-// void BlockRefCaptureChecker::reportDoubleClose(SymbolRef FileDescSym,
-//                                             const CallEvent &Call,
-//                                             CheckerContext &C) const {
-//   // We reached a bug, stop exploring the path here by generating a sink.
-//   ExplodedNode *ErrNode = C.generateSink();
-//   // If we've already reached this node on another path, return.
-//   if (!ErrNode)
-//     return;
-
-//   // Generate the report.
-//   BugReport *R = new BugReport(*DoubleCloseBugType,
-//       "Closing a previously closed file stream", ErrNode);
-//   R->addRange(Call.getSourceRange());
-//   R->markInteresting(FileDescSym);
-//   C.emitReport(R);
-// }
-
-// void BlockRefCaptureChecker::reportLeaks(SymbolVector LeakedStreams,
-//                                                CheckerContext &C,
-//                                                ExplodedNode *ErrNode) const {
-//   // Attach bug reports to the leak node.
-//   // TODO: Identify the leaked file descriptor.
-//   for (SmallVectorImpl<SymbolRef>::iterator
-//          I = LeakedStreams.begin(), E = LeakedStreams.end(); I != E; ++I) {
-//     BugReport *R = new BugReport(*LeakBugType,
-//         "Opened file is never closed; potential resource leak", ErrNode);
-//     R->markInteresting(*I);
-//     C.emitReport(R);
-//   }
-// }
 
 void BlockRefCaptureChecker::initIdentifierInfo(ASTContext &Ctx) const {
   if (II_dispatch_async)
