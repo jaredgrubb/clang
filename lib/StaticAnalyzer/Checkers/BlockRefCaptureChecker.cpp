@@ -178,7 +178,11 @@ void BlockRefCaptureChecker::checkBlockForBadCapture(const BlockExpr *BE, Checke
 
     ProgramStateRef state = C.getState();
     ExplodedNode *N = C.addTransition(state);
-    BugReport *Bug = new BugReport(*BT_RefCaptureBug, os.str(), N);
+
+    PathDiagnosticLocation Loc =  PathDiagnosticLocation::createBegin(
+            ProbVD, C.getSourceManager());
+
+    BugReport *Bug = new BugReport(*BT_RefCaptureBug, os.str(), N, Loc, VD);
     Bug->markInteresting(VR);
     Bug->addRange(VD->getSourceRange());
     C.emitReport(Bug);
