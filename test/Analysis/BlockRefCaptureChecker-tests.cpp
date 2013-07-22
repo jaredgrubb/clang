@@ -22,64 +22,64 @@ void checkCapture_Nothing() {
 }
 
 void checkCapture_StackVar() {
-  int a = 7;
-  dispatch_async(DUMMY_QUEUE, ^{ // no warning
+  int a = 7; // no warning
+  dispatch_async(DUMMY_QUEUE, ^{ 
     (void)a;
   });
 }
 
 void checkCapture_RefToStackVar() {
   int a = 7;
-  int& a_ref = a;
-  dispatch_async(DUMMY_QUEUE, ^{ // expected-warning {{Variable 'a_ref' is captured as a reference-type to a variable that may not exist when the block runs}}
-    (void)a_ref;
+  int& ref_to_stack = a; // expected-warning {{Variable 'ref_to_stack' is captured as a reference-type to a variable that may not exist when the block runs}}
+  dispatch_async(DUMMY_QUEUE, ^{ 
+    (void)ref_to_stack;
   });
 }
 
 void checkCapture_RefToStackVarViaImplicitCast() {
   int a = 7;
-  const int& a_ref = a;
-  dispatch_async(DUMMY_QUEUE, ^{ // expected-warning {{Variable 'a_ref' is captured as a reference-type to a variable that may not exist when the block runs}}
-    (void)a_ref;
+  const int& ref_to_stack = a; // expected-warning {{Variable 'ref_to_stack' is captured as a reference-type to a variable that may not exist when the block runs}}
+  dispatch_async(DUMMY_QUEUE, ^{ 
+    (void)ref_to_stack;
   });
 }
 
 void checkCapture_RefToTemporary() {
-  int const& ref_to_temp = 7;
-  dispatch_async(DUMMY_QUEUE, ^{ // expected-warning {{Variable 'ref_to_temp' is captured as a reference-type to a variable that may not exist when the block runs}}
+  int const& ref_to_temp = 7; // expected-warning {{Variable 'ref_to_temp' is captured as a reference-type to a variable that may not exist when the block runs}}
+  dispatch_async(DUMMY_QUEUE, ^{ 
     (void)ref_to_temp;
   });
 }
 
 void checkCapture_RefToTemporaryReturnValue() {
-  Derived const& ref_to_temp_obj = createObject();
-  dispatch_async(DUMMY_QUEUE, ^{ // expected-warning {{Variable 'ref_to_temp_obj' is captured as a reference-type to a variable that may not exist when the block runs}}
+  Derived const& ref_to_temp_obj = createObject();  // expected-warning {{Variable 'ref_to_temp_obj' is captured as a reference-type to a variable that may not exist when the block runs}}
+  dispatch_async(DUMMY_QUEUE, ^{
     (void)ref_to_temp_obj;
   });
 }
 
 void checkCapture_RvalRefToTemporaryReturnValue() {
-  Derived&& rval_ref_to_temp = createObject();
-  dispatch_async(DUMMY_QUEUE, ^{ // expected-warning {{Variable 'rval_ref_to_temp' is captured as a reference-type to a variable that may not exist when the block runs}}
+  Derived&& rval_ref_to_temp = createObject(); // expected-warning {{Variable 'rval_ref_to_temp' is captured as a reference-type to a variable that may not exist when the block runs}}
+  dispatch_async(DUMMY_QUEUE, ^{
     (void)rval_ref_to_temp;
   });
 }
 
 void checkCapture_RefToUnknownReturnValue() {
-  Derived const& ref_to_ambig_obj = getMaybeGlobal();
-  dispatch_async(DUMMY_QUEUE, ^{ // no warning
+  Derived const& ref_to_ambig_obj = getMaybeGlobal(); // no warning
+  dispatch_async(DUMMY_QUEUE, ^{
     (void)ref_to_ambig_obj;
   });
 }
 
-void checkCapture_Param(int param) {
-  dispatch_async(DUMMY_QUEUE, ^{ // no warning
+void checkCapture_Param(int param) { // no warning
+  dispatch_async(DUMMY_QUEUE, ^{
     (void)param;
   });
 }
 
-void checkCapture_RefToParam(const int& param_ref) {
-  dispatch_async(DUMMY_QUEUE, ^{ // expected-warning {{Variable 'param_ref' is captured as a reference-type to a variable that may not exist when the block runs}}
+void checkCapture_RefToParam(const int& param_ref) { // expected-warning {{Variable 'param_ref' is captured as a reference-type to a variable that may not exist when the block runs}}
+  dispatch_async(DUMMY_QUEUE, ^{
     (void)param_ref;
   });
 }
