@@ -363,6 +363,8 @@ public:
     if (II && II->getName().startswith("__inline"))
       return true;
 
+    std::cout << "############### VisitFunctionDecl ##################" << std::endl;
+
     // We skip function template definitions, as their semantics is
     // only determined when they are instantiated.
     if (FD->isThisDeclarationADefinition() &&
