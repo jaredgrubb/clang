@@ -11,6 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <iostream>
+
 #define DEBUG_TYPE "AnalysisConsumer"
 
 #include "AnalysisConsumer.h"
