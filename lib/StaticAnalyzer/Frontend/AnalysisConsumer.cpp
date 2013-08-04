@@ -365,7 +365,7 @@ public:
     if (II && II->getName().startswith("__inline"))
       return true;
 
-    std::cout << "############### VisitFunctionDecl ##################" << std::endl;
+    std::cout << "############### VisitFunctionDecl : " << FD->getNameInfo().getAsString() << "##################" << std::endl;
 
     // We skip function template definitions, as their semantics is
     // only determined when they are instantiated.
