@@ -52,6 +52,8 @@ AnalysisDeclContext::AnalysisDeclContext(AnalysisDeclContextManager *Mgr,
     ManagedAnalyses(0)
 {  
   cfgBuildOptions.forcedBlkExprs = &forcedBlkExprs;
+
+  checkShouldAutosynthesize();
 }
 
 AnalysisDeclContext::AnalysisDeclContext(AnalysisDeclContextManager *Mgr,
@@ -83,8 +85,6 @@ AnalysisDeclContextManager::AnalysisDeclContextManager(bool useUnoptimizedCFG,
   cfgBuildOptions.AddInitializers = addInitializers;
   cfgBuildOptions.AddTemporaryDtors = addTemporaryDtors;
   cfgBuildOptions.AddStaticInitBranches = addStaticInitBranch;
-
-  checkShouldAutosynthesize();
 }
 
 void AnalysisDeclContextManager::clear() {
