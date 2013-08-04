@@ -11,8 +11,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include <iostream>
-
 #define DEBUG_TYPE "AnalysisConsumer"
 
 #include "AnalysisConsumer.h"
@@ -364,8 +362,6 @@ public:
     IdentifierInfo *II = FD->getIdentifier();
     if (II && II->getName().startswith("__inline"))
       return true;
-
-    std::cout << "############### VisitFunctionDecl : " << FD->getNameInfo().getAsString() << "##################" << std::endl;
 
     // We skip function template definitions, as their semantics is
     // only determined when they are instantiated.

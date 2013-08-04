@@ -23,6 +23,9 @@
 
 #include "llvm/ADT/StringSwitch.h"
 
+// XXXXXX: REMOVE THIS!
+#include <iostream>
+
 using namespace clang;
 
 //===----------------------------------------------------------------------===//
@@ -254,6 +257,8 @@ static FunctionFarmer getFunctionFarmerForCxxMethod(const CXXMethodDecl *MD)
 
   if (isNamespaceStd(RD->getRedeclContext())) {
     if (isNamed(RD, "basic_string")) {
+
+      std::cout << "############### Found basic::string function : " << MD->getNameInfo().getAsString() << "##################" << std::endl;
 
     }
   }
