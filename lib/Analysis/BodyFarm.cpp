@@ -255,8 +255,11 @@ static FunctionFarmer getFunctionFarmerForCxxMethod(const CXXMethodDecl *MD)
   // get the class decl
   const CXXRecordDecl *RD = MD->getParent();
 
+  // the decl context of the class is the enclosing namespace
+  const NamespaceDecl *ND = dyn_cast<NamespaceDecl>(RD->getEnclosingNamespaceContext());
+
   std::cout << "########### FunctionFarmer : CXXRecordDecl=" << RD->getIdentifier()->getNameStart() << "##################" << std::endl;
-  std::cout << "                           : getRedeclContext=" << RD->getRedeclContext()->getIdentifier()->getNameStart() << "##################" << std::endl;
+  std::cout << "                           : NamespaceDecl=" << ND->getIdentifier()->getNameStart() << "##################" << std::endl;
 
   if (isNamespaceStd(RD->getRedeclContext())) {
     if (isNamed(RD, "basic_string")) {
