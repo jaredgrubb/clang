@@ -17,13 +17,6 @@
 
 #include "clang/Basic/LLVM.h"
 
-#include "clang/AST/ASTContext.h"
-#include "clang/AST/Decl.h"
-#include "clang/AST/Expr.h"
-#include "clang/AST/ExprObjC.h"
-#include "clang/AST/Stmt.h"
-#include "clang/AST/Type.h"
-
 namespace clang {
 
 class ASTMaker {

@@ -15,6 +15,13 @@
 #include "BodyFarm.h"
 #include "ASTMaker.h"
 
+#include "clang/AST/ASTContext.h"
+#include "clang/AST/Decl.h"
+#include "clang/AST/Expr.h"
+#include "clang/AST/ExprObjC.h"
+#include "clang/AST/Stmt.h"
+#include "clang/AST/Type.h"
+
 #include "llvm/ADT/StringSwitch.h"
 
 using namespace clang;
