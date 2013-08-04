@@ -242,8 +242,7 @@ static bool isNamed(const NamedDecl *ND, const char (&Str)[Len]) {
   return II && II->isStr(Str);
 }
 
-static bool isNamespaceStd(const DeclContext *DC) {
-  const NamespaceDecl *ND = dyn_cast<NamespaceDecl>(DC->getRedeclContext());
+static bool isNamespaceStd(const NamespaceDecl *ND) {
   return ND && isNamed(ND, "std") &&
          ND->getParent()->getRedeclContext()->isTranslationUnit();
 }
@@ -277,7 +276,7 @@ static FunctionFarmer getFunctionFarmerForCxxMethod(const CXXMethodDecl *MD)
   // skip inline namespaces
   std::cout << "                           : NamespaceDecl=" << ND->getIdentifier()->getNameStart() << "##################" << std::endl;
 
-  if (isNamespaceStd(RD->getRedeclContext())) {
+  if (isNamespaceStd(ND)) {
     if (isNamed(RD, "basic_string")) {
 
       std::cout << "########### **** Found basic::string function : " << MD->getNameInfo().getAsString() << "##################" << std::endl;
