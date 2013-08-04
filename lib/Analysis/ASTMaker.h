@@ -17,13 +17,14 @@
 
 #include "clang/Basic/LLVM.h"
 
+#include "clang/AST/ASTContext.h"
+#include "clang/AST/Decl.h"
+#include "clang/AST/Expr.h"
+#include "clang/AST/ExprObjC.h"
+#include "clang/AST/Stmt.h"
+
 namespace clang {
 
-class ASTContext;
-class Decl;
-class FunctionDecl;
-class Stmt;
-  
 class ASTMaker {
 public:
   ASTMaker(ASTContext &C) : C(C) {}
