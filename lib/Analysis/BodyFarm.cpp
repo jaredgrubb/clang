@@ -255,7 +255,7 @@ static const NamespaceDecl *getNamespaceForClass(const CXXRecordDecl *RD)
   const NamespaceDecl *ND = dyn_cast<NamespaceDecl>(RD->getEnclosingNamespaceContext());
 
   while(ND && ND->isInlineNamespace()) {
-    ND = dyn_cast<NamespaceDecl>(ND->getEnclosingNamespaceContext());
+    ND = dyn_cast<NamespaceDecl>(ND->getRedeclContext()->getEnclosingNamespaceContext());
   }
 
   return ND;
@@ -273,6 +273,7 @@ static FunctionFarmer getFunctionFarmerForCxxMethod(const CXXMethodDecl *MD)
     // top-level class; not interesting
     return NULL;
   }
+
   // skip inline namespaces
   std::cout << "                           : NamespaceDecl=" << ND->getIdentifier()->getNameStart() << "##################" << std::endl;
 
