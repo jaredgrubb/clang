@@ -22,6 +22,7 @@
 #include "clang/AST/Expr.h"
 #include "clang/AST/ExprObjC.h"
 #include "clang/AST/Stmt.h"
+#include "clang/AST/Type.h"
 
 namespace clang {
 
