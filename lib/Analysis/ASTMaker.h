@@ -16,19 +16,21 @@
 #define LLVM_CLANG_ANALYSIS_BODYFARM_H
 
 #include "clang/Basic/LLVM.h"
+#include "clang/AST/OperationKinds.h"
 
 namespace clang {
   class ASTContext;
+  class VarDecl;
   class Expr;
   class DeclRefExpr;
   class ImplicitCastExpr;
   class ObjCBoolLiteralExpr;
-  class UnaryOperator;
-  class BinaryOperator;
   class QualType;
   class Stmt;
   class CompoundStmt;
   class ReturnStmt;
+  class UnaryOperator;
+  class BinaryOperator;
 
 class ASTMaker {
 public:
@@ -44,7 +46,7 @@ public:
   
   /// Create a new BinaryOperator representing a comparison.
   BinaryOperator *makeComparison(const Expr *LHS, const Expr *RHS,
-                                 BinaryOperator::Opcode Op);
+                                 BinaryOperatorKind Op);
   
   /// Create a new compound stmt using the provided statements.
   CompoundStmt *makeCompound(ArrayRef<Stmt*>);

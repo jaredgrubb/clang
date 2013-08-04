@@ -29,7 +29,7 @@ BinaryOperator *ASTMaker::makeAssignment(const Expr *LHS, const Expr *RHS,
 }
 
 BinaryOperator *ASTMaker::makeComparison(const Expr *LHS, const Expr *RHS,
-                                         BinaryOperator::Opcode Op) {
+                                         BinaryOperatorKind Op) {
   assert(BinaryOperator::isLogicalOp(Op) ||
          BinaryOperator::isComparisonOp(Op));
   return new (C) BinaryOperator(const_cast<Expr*>(LHS),
