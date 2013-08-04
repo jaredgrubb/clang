@@ -18,18 +18,17 @@
 #include "clang/Basic/LLVM.h"
 
 namespace clang {
-
-class ASTContext;
-class Expr;
-class DeclRefExpr;
-class ImplicitCastExpr;
-class ObjCBoolLiteralExpr;
-class UnaryOperator;
-class BinaryOperator;
-class QualType;
-class Stmt;
-class CompoundStmt;
-class ReturnStmt;
+  class ASTContext;
+  class Expr;
+  class DeclRefExpr;
+  class ImplicitCastExpr;
+  class ObjCBoolLiteralExpr;
+  class UnaryOperator;
+  class BinaryOperator;
+  class QualType;
+  class Stmt;
+  class CompoundStmt;
+  class ReturnStmt;
 
 class ASTMaker {
 public:
