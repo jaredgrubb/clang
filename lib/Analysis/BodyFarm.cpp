@@ -290,6 +290,7 @@ static FunctionFarmer getFunctionFarmer(const FunctionDecl *FD)
 {
   // C++ member function
   if (const CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(FD)) {
+    std::cout << "########### FunctionFarmer : " << FD->getNameInfo().getAsString() << "##################" << std::endl;
     return getFunctionFarmerForCxxMethod(MD);
   }
 
