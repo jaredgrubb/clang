@@ -33,6 +33,9 @@ public:
   /// Factory method for creating bodies for ordinary functions.
   Stmt *getBody(const FunctionDecl *D);
   
+  /// Query on whether BodyFarm will handle the given declaration
+  bool canAutosynthesize(const FunctionDecl *D) const;
+
 private:
   typedef llvm::DenseMap<const Decl *, Optional<Stmt *> > BodyMap;
 

@@ -22,7 +22,7 @@
 using namespace clang;
 
 //===----------------------------------------------------------------------===//
-// Helper creation functions for constructing faux ASTs.
+// Creation functions for faux ASTs.
 //===----------------------------------------------------------------------===//
 
 static bool isDispatchBlock(QualType Ty) {
@@ -41,122 +41,6 @@ static bool isDispatchBlock(QualType Ty) {
 
   return true;
 }
-
-namespace {
-class ASTMaker {
-public:
-  ASTMaker(ASTContext &C) : C(C) {}
-  
-  /// Create a new BinaryOperator representing a simple assignment.
-  BinaryOperator *makeAssignment(const Expr *LHS, const Expr *RHS, QualType Ty);
-  
-  /// Create a new BinaryOperator representing a comparison.
-  BinaryOperator *makeComparison(const Expr *LHS, const Expr *RHS,
-                                 BinaryOperator::Opcode Op);
-  
-  /// Create a new compound stmt using the provided statements.
-  CompoundStmt *makeCompound(ArrayRef<Stmt*>);
-  
-  /// Create a new DeclRefExpr for the referenced variable.
-  DeclRefExpr *makeDeclRefExpr(const VarDecl *D);
-  
-  /// Create a new UnaryOperator representing a dereference.
-  UnaryOperator *makeDereference(const Expr *Arg, QualType Ty);
-  
-  /// Create an implicit cast for an integer conversion.
-  Expr *makeIntegralCast(const Expr *Arg, QualType Ty);
-  
-  /// Create an implicit cast to a builtin boolean type.
-  ImplicitCastExpr *makeIntegralCastToBoolean(const Expr *Arg);
-  
-  // Create an implicit cast for lvalue-to-rvaluate conversions.
-  ImplicitCastExpr *makeLvalueToRvalue(const Expr *Arg, QualType Ty);
-  
-  /// Create an Objective-C bool literal.
-  ObjCBoolLiteralExpr *makeObjCBool(bool Val);
-  
-  /// Create a Return statement.
-  ReturnStmt *makeReturn(const Expr *RetVal);
-  
-private:
-  ASTContext &C;
-};
-}
-
-BinaryOperator *ASTMaker::makeAssignment(const Expr *LHS, const Expr *RHS,
-                                         QualType Ty) {
- return new (C) BinaryOperator(const_cast<Expr*>(LHS), const_cast<Expr*>(RHS),
-                               BO_Assign, Ty, VK_RValue,
-                               OK_Ordinary, SourceLocation(), false);
-}
-
-BinaryOperator *ASTMaker::makeComparison(const Expr *LHS, const Expr *RHS,
-                                         BinaryOperator::Opcode Op) {
-  assert(BinaryOperator::isLogicalOp(Op) ||
-         BinaryOperator::isComparisonOp(Op));
-  return new (C) BinaryOperator(const_cast<Expr*>(LHS),
-                                const_cast<Expr*>(RHS),
-                                Op,
-                                C.getLogicalOperationType(),
-                                VK_RValue,
-                                OK_Ordinary, SourceLocation(), false);
-}
-
-CompoundStmt *ASTMaker::makeCompound(ArrayRef<Stmt *> Stmts) {
-  return new (C) CompoundStmt(C, Stmts, SourceLocation(), SourceLocation());
-}
-
-DeclRefExpr *ASTMaker::makeDeclRefExpr(const VarDecl *D) {
-  DeclRefExpr *DR =
-    DeclRefExpr::Create(/* Ctx = */ C,
-                        /* QualifierLoc = */ NestedNameSpecifierLoc(),
-                        /* TemplateKWLoc = */ SourceLocation(),
-                        /* D = */ const_cast<VarDecl*>(D),
-                        /* isEnclosingLocal = */ false,
-                        /* NameLoc = */ SourceLocation(),
-                        /* T = */ D->getType(),
-                        /* VK = */ VK_LValue);
-  return DR;
-}
-
-UnaryOperator *ASTMaker::makeDereference(const Expr *Arg, QualType Ty) {
-  return new (C) UnaryOperator(const_cast<Expr*>(Arg), UO_Deref, Ty,
-                               VK_LValue, OK_Ordinary, SourceLocation());
-}
-
-ImplicitCastExpr *ASTMaker::makeLvalueToRvalue(const Expr *Arg, QualType Ty) {
-  return ImplicitCastExpr::Create(C, Ty, CK_LValueToRValue,
-                                  const_cast<Expr*>(Arg), 0, VK_RValue);
-}
-
-Expr *ASTMaker::makeIntegralCast(const Expr *Arg, QualType Ty) {
-  if (Arg->getType() == Ty)
-    return const_cast<Expr*>(Arg);
-  
-  return ImplicitCastExpr::Create(C, Ty, CK_IntegralCast,
-                                  const_cast<Expr*>(Arg), 0, VK_RValue);
-}
-
-ImplicitCastExpr *ASTMaker::makeIntegralCastToBoolean(const Expr *Arg) {
-  return ImplicitCastExpr::Create(C, C.BoolTy, CK_IntegralToBoolean,
-                                  const_cast<Expr*>(Arg), 0, VK_RValue);
-}
-
-ObjCBoolLiteralExpr *ASTMaker::makeObjCBool(bool Val) {
-  QualType Ty = C.getBOOLDecl() ? C.getBOOLType() : C.ObjCBuiltinBoolTy;
-  return new (C) ObjCBoolLiteralExpr(Val, Ty, SourceLocation());
-}
-
-ReturnStmt *ASTMaker::makeReturn(const Expr *RetVal) {
-  return new (C) ReturnStmt(SourceLocation(), const_cast<Expr*>(RetVal), 0);
-}
-
-//===----------------------------------------------------------------------===//
-// Creation functions for faux ASTs.
-//===----------------------------------------------------------------------===//
-
-typedef Stmt *(*FunctionFarmer)(ASTContext &C, const FunctionDecl *D);
-
 /// Create a fake body for dispatch_once.
 static Stmt *create_dispatch_once(ASTContext &C, const FunctionDecl *D) {
   // Check if we have at least two parameters.
@@ -341,36 +225,96 @@ static Stmt *create_OSAtomicCompareAndSwap(ASTContext &C, const FunctionDecl *D)
   return If;  
 }
 
-Stmt *BodyFarm::getBody(const FunctionDecl *D) {
-  D = D->getCanonicalDecl();
+//===----------------------------------------------------------------------===//
+// Detection for whether fake ASTs can/should be created
+//===----------------------------------------------------------------------===//
+
+template<std::size_t Len>
+static bool isNamed(const NamedDecl *ND, const char (&Str)[Len]) {
+  IdentifierInfo *II = ND->getIdentifier();
+  return II && II->isStr(Str);
+}
+
+static bool isNamespaceStd(const DeclContext *DC) {
+  const NamespaceDecl *ND = dyn_cast<NamespaceDecl>(DC->getRedeclContext());
+  return ND && isNamed(ND, "std") &&
+         ND->getParent()->getRedeclContext()->isTranslationUnit();
+}
+
+typedef Stmt *(*FunctionFarmer)(ASTContext &C, const FunctionDecl *FD);
+
+static FunctionFarmer getFunctionFarmerForCxxMethod(const CXXMethodDecl *MD)
+{
+  // get the class decl
+  const CXXRecordDecl *RD = MD->getParent();
+
+  if (isNamespaceStd(RD->getRedeclContext())) {
+    if (isNamed(RD, "basic_string")) {
+
+    }
+  }
+  return NULL;
+}
+
+static FunctionFarmer getFunctionFarmerForGlobalCFunction(const FunctionDecl *FD)
+{
+  if (FD->getIdentifier() == 0)
+    return NULL;
+
+  StringRef Name = FD->getName();
+  if (Name.empty())
+    return NULL;
+
+  if (Name.startswith("OSAtomicCompareAndSwap") ||
+      Name.startswith("objc_atomicCompareAndSwap")) {
+    return create_OSAtomicCompareAndSwap;
+  }
+  else {
+    return llvm::StringSwitch<FunctionFarmer>(Name)
+          .Case("dispatch_sync", create_dispatch_sync)
+          .Case("dispatch_once", create_dispatch_once)
+        .Default(NULL);
+  }
+}
+
+static FunctionFarmer getFunctionFarmer(const FunctionDecl *FD)
+{
+  // C++ member function
+  if (const CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(FD)) {
+    return getFunctionFarmerForCxxMethod(MD);
+  }
+
+  // One day: check for handled non-member C++ functions
+
+  const DeclContext *DC = FD->getDeclContext()->getRedeclContext();
+  if (DC->isTranslationUnit()) {
+    // Global C functions now, which cannot be in a namespace
+    return getFunctionFarmerForGlobalCFunction(FD);
+  }
+
+  return NULL;
+}
+
+bool BodyFarm::canAutosynthesize(const FunctionDecl *FD) const
+{
+  FD = FD->getCanonicalDecl();
+  return getFunctionFarmer(FD);
+}
+
+Stmt *BodyFarm::getBody(const FunctionDecl *FD) {
+  FD = FD->getCanonicalDecl();
   
-  Optional<Stmt *> &Val = Bodies[D];
+  // use cached one if we have one
+  Optional<Stmt *> &Val = Bodies[FD];
   if (Val.hasValue())
     return Val.getValue();
   
   Val = 0;
   
-  if (D->getIdentifier() == 0)
-    return 0;
-
-  StringRef Name = D->getName();
-  if (Name.empty())
-    return 0;
-
-  FunctionFarmer FF;
-
-  if (Name.startswith("OSAtomicCompareAndSwap") ||
-      Name.startswith("objc_atomicCompareAndSwap")) {
-    FF = create_OSAtomicCompareAndSwap;
+  FunctionFarmer FF = getFunctionFarmer(FD);
+  if (FF) { 
+    Val = FF(C, FD); 
   }
-  else {
-    FF = llvm::StringSwitch<FunctionFarmer>(Name)
-          .Case("dispatch_sync", create_dispatch_sync)
-          .Case("dispatch_once", create_dispatch_once)
-        .Default(NULL);
-  }
-  
-  if (FF) { Val = FF(C, D); }
+
   return Val.getValue();
 }
-

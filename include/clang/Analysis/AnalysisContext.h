@@ -80,7 +80,10 @@ class AnalysisDeclContext {
   CFG::BuildOptions cfgBuildOptions;
   CFG::BuildOptions::ForcedBlkExprs *forcedBlkExprs;
 
-  bool builtCFG, builtCompleteCFG;
+  bool builtCFG : 1;
+  bool builtCompleteCFG : 1;
+  bool isAutosynthesized : 1;
+  
   OwningPtr<ParentMap> PM;
   OwningPtr<PseudoConstantAnalysis> PCA;
   OwningPtr<CFGReverseBlockReachabilityAnalysis> CFA;
@@ -201,6 +204,8 @@ private:
   ManagedAnalysis *&getAnalysisImpl(const void* tag);
 
   LocationContextManager &getLocationContextManager();
+
+  void checkShouldAutosynthesize();
 };
 
 class LocationContext : public llvm::FoldingSetNode {
