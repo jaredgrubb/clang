@@ -263,6 +263,7 @@ static FunctionFarmer getFunctionFarmerForCxxMethod(const CXXMethodDecl *MD)
     return NULL;
   }
 
+  ND = ND->getOriginalNamespace();
   std::cout << "                           : NamespaceDecl=" << ND->getIdentifier()->getNameStart() << "##################" << std::endl;
 
   if (isNamespaceStd(RD->getRedeclContext())) {
