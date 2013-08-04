@@ -250,20 +250,30 @@ static bool isNamespaceStd(const DeclContext *DC) {
 
 typedef Stmt *(*FunctionFarmer)(ASTContext &C, const FunctionDecl *FD);
 
+static const NamespaceDecl *getNamespaceForClass(const CXXRecordDecl *RD)
+{
+  const NamespaceDecl *ND = dyn_cast<NamespaceDecl>(RD->getEnclosingNamespaceContext());
+
+  while(ND && ND->isAnonymousNamespace()) {
+    ND = dyn_cast<NamespaceDecl>(ND->getEnclosingNamespaceContext());
+  }
+
+  return ND;
+}
+
 static FunctionFarmer getFunctionFarmerForCxxMethod(const CXXMethodDecl *MD)
 {
   // get the class decl
   const CXXRecordDecl *RD = MD->getParent();
   std::cout << "########### FunctionFarmer : CXXRecordDecl=" << RD->getIdentifier()->getNameStart() << "##################" << std::endl;
 
-  // the decl context of the class is the enclosing namespace
-  const NamespaceDecl *ND = dyn_cast<NamespaceDecl>(RD->getEnclosingNamespaceContext());
+  // get the first non-anonymous namespace for this class:
+  const NamespaceDecl *ND = getNamespaceForClass(RD);
   if (!ND) {
-    // probably global namespace
+    // top-level class; not interesting
     return NULL;
   }
-
-  ND = ND->getOriginalNamespace();
+  // skip inline namespaces
   std::cout << "                           : NamespaceDecl=" << ND->getIdentifier()->getNameStart() << "##################" << std::endl;
 
   if (isNamespaceStd(RD->getRedeclContext())) {
