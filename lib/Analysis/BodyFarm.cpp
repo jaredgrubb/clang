@@ -260,7 +260,7 @@ static FunctionFarmer getFunctionFarmerForCxxMethod(const CXXMethodDecl *MD)
   const NamespaceDecl *ND = dyn_cast<NamespaceDecl>(RD->getEnclosingNamespaceContext());
   if (!ND) {
     // probably global namespace
-    return NULL
+    return NULL;
   }
 
   std::cout << "                           : NamespaceDecl=" << ND->getIdentifier()->getNameStart() << "##################" << std::endl;
