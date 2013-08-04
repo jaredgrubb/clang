@@ -31,6 +31,9 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/SaveAndRestore.h"
 
+// XXXXXX: remove!
+#include <iostream>
+
 using namespace clang;
 
 typedef llvm::DenseMap<const void *, ManagedAnalysis *> ManagedAnalysisMap;
@@ -93,6 +96,7 @@ static BodyFarm &getBodyFarm(ASTContext &C) {
 
 void AnalysisDeclContext::checkShouldAutosynthesize() {
   if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(D)) {
+    std::cout << "#### AnalysisDeclContext::checkShouldAutosynthesize : " << FD->getNameInfo().getAsString() << "##################" << std::endl;
     if (Manager && Manager->synthesizeBodies()) {
       isAutosynthesized = getBodyFarm(getASTContext()).canAutosynthesize(FD);
     }
