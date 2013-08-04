@@ -254,7 +254,7 @@ static const NamespaceDecl *getNamespaceForClass(const CXXRecordDecl *RD)
 {
   const NamespaceDecl *ND = dyn_cast<NamespaceDecl>(RD->getEnclosingNamespaceContext());
 
-  while(ND && ND->isAnonymousNamespace()) {
+  while(ND && ND->isInlineNamespace()) {
     ND = dyn_cast<NamespaceDecl>(ND->getEnclosingNamespaceContext());
   }
 
