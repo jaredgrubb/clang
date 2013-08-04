@@ -255,10 +255,12 @@ static FunctionFarmer getFunctionFarmerForCxxMethod(const CXXMethodDecl *MD)
   // get the class decl
   const CXXRecordDecl *RD = MD->getParent();
 
+  std::cout << "########### FunctionFarmer : CXXRecordDecl=" << RD->getNameInfo().getAsString() << "##################" << std::endl;
+
   if (isNamespaceStd(RD->getRedeclContext())) {
     if (isNamed(RD, "basic_string")) {
 
-      std::cout << "############### Found basic::string function : " << MD->getNameInfo().getAsString() << "##################" << std::endl;
+      std::cout << "########### **** Found basic::string function : " << MD->getNameInfo().getAsString() << "##################" << std::endl;
 
     }
   }
@@ -290,7 +292,6 @@ static FunctionFarmer getFunctionFarmer(const FunctionDecl *FD)
 {
   // C++ member function
   if (const CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(FD)) {
-    std::cout << "########### FunctionFarmer : " << FD->getNameInfo().getAsString() << "##################" << std::endl;
     return getFunctionFarmerForCxxMethod(MD);
   }
 
@@ -307,8 +308,6 @@ static FunctionFarmer getFunctionFarmer(const FunctionDecl *FD)
 
 bool BodyFarm::canAutosynthesize(const FunctionDecl *FD) const
 {
-  std::cout << "####### FunctionFarmer.canAutosynthesize : " << FD->getNameInfo().getAsString() << "##################" << std::endl;
-
   FD = FD->getCanonicalDecl();
   return getFunctionFarmer(FD);
 }
