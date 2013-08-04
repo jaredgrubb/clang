@@ -14,6 +14,7 @@
 
 #include "BodyFarm.h"
 #include "ASTMaker.h"
+clang::ASTMaker* maker;
 
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Decl.h"
