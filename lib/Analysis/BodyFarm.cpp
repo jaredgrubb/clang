@@ -255,7 +255,7 @@ static FunctionFarmer getFunctionFarmerForCxxMethod(const CXXMethodDecl *MD)
   // get the class decl
   const CXXRecordDecl *RD = MD->getParent();
 
-  std::cout << "########### FunctionFarmer : CXXRecordDecl=" << RD->getNameInfo().getAsString() << "##################" << std::endl;
+  std::cout << "########### FunctionFarmer : CXXRecordDecl=" << RD->getIdentifier().getAsString() << "##################" << std::endl;
 
   if (isNamespaceStd(RD->getRedeclContext())) {
     if (isNamed(RD, "basic_string")) {
