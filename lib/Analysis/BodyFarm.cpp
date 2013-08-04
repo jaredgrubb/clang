@@ -307,6 +307,8 @@ static FunctionFarmer getFunctionFarmer(const FunctionDecl *FD)
 
 bool BodyFarm::canAutosynthesize(const FunctionDecl *FD) const
 {
+  std::cout << "####### FunctionFarmer.canAutosynthesize : " << FD->getNameInfo().getAsString() << "##################" << std::endl;
+
   FD = FD->getCanonicalDecl();
   return getFunctionFarmer(FD);
 }
