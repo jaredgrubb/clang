@@ -66,6 +66,8 @@ AnalysisDeclContext::AnalysisDeclContext(AnalysisDeclContextManager *Mgr,
   ManagedAnalyses(0)
 {  
   cfgBuildOptions.forcedBlkExprs = &forcedBlkExprs;
+
+  checkShouldAutosynthesize();
 }
 
 AnalysisDeclContextManager::AnalysisDeclContextManager(bool useUnoptimizedCFG,
@@ -81,6 +83,8 @@ AnalysisDeclContextManager::AnalysisDeclContextManager(bool useUnoptimizedCFG,
   cfgBuildOptions.AddInitializers = addInitializers;
   cfgBuildOptions.AddTemporaryDtors = addTemporaryDtors;
   cfgBuildOptions.AddStaticInitBranches = addStaticInitBranch;
+
+  checkShouldAutosynthesize();
 }
 
 void AnalysisDeclContextManager::clear() {
@@ -96,7 +100,6 @@ static BodyFarm &getBodyFarm(ASTContext &C) {
 
 void AnalysisDeclContext::checkShouldAutosynthesize() {
   if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(D)) {
-    std::cout << "#### AnalysisDeclContext::checkShouldAutosynthesize : " << FD->getNameInfo().getAsString() << "##################" << std::endl;
     if (Manager && Manager->synthesizeBodies()) {
       isAutosynthesized = getBodyFarm(getASTContext()).canAutosynthesize(FD);
     }
