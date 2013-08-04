@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_ANALYSIS_BODYFARM_H
-#define LLVM_CLANG_ANALYSIS_BODYFARM_H
+#ifndef LLVM_CLANG_ANALYSIS_ASTMAKER_H
+#define LLVM_CLANG_ANALYSIS_ASTMAKER_H
 
 #include "clang/Basic/LLVM.h"
 #include "clang/AST/OperationKinds.h"
