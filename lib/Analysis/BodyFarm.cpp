@@ -255,7 +255,7 @@ static const NamespaceDecl *getNamespaceForClass(const CXXRecordDecl *RD)
   const NamespaceDecl *ND = dyn_cast<NamespaceDecl>(RD->getEnclosingNamespaceContext());
 
   while(ND && ND->isInlineNamespace()) {
-    ND = dyn_cast<NamespaceDecl>(ND->getRedeclContext()->getEnclosingNamespaceContext());
+    ND = dyn_cast<NamespaceDecl>(ND->getParent());
   }
 
   return ND;
