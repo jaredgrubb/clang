@@ -149,6 +149,7 @@ Stmt *StdStringBodyFarm::create_dtor(ASTContext &C, const CXXDestructorDecl *D) 
 
 Stmt *StdStringBodyFarm::create_size(ASTContext &C, const CXXMethodDecl *D) {
   std::cout << "########### ****   size    ##################" << std::endl;
+  // intentionally return empty body; this is one of the primitives that we hook into
   return NULL;
 }
 
@@ -163,7 +164,7 @@ Stmt *StdStringBodyFarm::create_length(ASTContext &C, const CXXMethodDecl *D) {
   //       return size();
   //   }
 
-  ASTMaker M;
+  ASTMaker M(C);
 
   // find the "size" member. We can cheat becuase size & length have the same signature
   const CXXMethodDecl *SizeMethod = getMember(D->getParent(), D->getType(), "size");
@@ -175,7 +176,7 @@ Stmt *StdStringBodyFarm::create_length(ASTContext &C, const CXXMethodDecl *D) {
   CXXThisExpr *This = new (C) CXXThisExpr(SourceLocation(), D->getThisType(C), true);
 
   // alias to "size", since it's the same thing
-  CXXMemberCallExpr *SizeCall = makeCxxMemberCall(This, SizeMethod, ArrayRef<Expr*>());
+  CXXMemberCallExpr *SizeCall = M.makeCxxMemberCall(This, SizeMethod, ArrayRef<Expr*>());
 
   return M.makeReturn(SizeCall);
 }
