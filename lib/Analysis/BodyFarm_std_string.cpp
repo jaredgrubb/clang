@@ -47,7 +47,7 @@ namespace {
     };
 }
 
-Stmt *createBodyForStdString(ASTContext &C, const FunctionDecl *D)
+Stmt *BodyFarm::createBodyForStdString(ASTContext &C, const FunctionDecl *D)
 {
   if (const CXXConstructorDecl* CD = dyn_cast<CXXConstructorDecl>(D)) {
     return StdStringBodyFarm::create_ctor_body(C, CD);
