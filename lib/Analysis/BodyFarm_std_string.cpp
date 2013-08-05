@@ -44,7 +44,7 @@ namespace {
     };
 }
 
-BodyFarm::FunctionFarmer BodyFarm::getFunctionFarmerForStdString(const CXXMethodDecl *D)
+BodyFarm::FunctionFarmer getFunctionFarmerForStdString(const CXXMethodDecl *D)
 {
   return &StdStringBodyFarm::create_ctor_body;
 }

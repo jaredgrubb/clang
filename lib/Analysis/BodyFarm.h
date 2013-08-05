@@ -40,14 +40,14 @@ public:
   typedef Stmt *(*FunctionFarmer)(ASTContext &C, const FunctionDecl *FD);
 
 private:
-  static FunctionFarmer getFunctionFarmerForStdString(const CXXMethodDecl *D);
-
-private:
   typedef llvm::DenseMap<const Decl *, Optional<Stmt *> > BodyMap;
 
   ASTContext &C;
   BodyMap Bodies;
 };
+
+BodyFarm::FunctionFarmer getFunctionFarmerForStdString(const CXXMethodDecl *D);
+
 }
 
 #endif
