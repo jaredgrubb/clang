@@ -13,6 +13,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "BodyFarm.h"
+#include "ASTMaker.h"
+
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/Expr.h"
@@ -40,115 +42,6 @@ static bool isDispatchBlock(QualType Ty) {
     return false;
 
   return true;
-}
-
-namespace {
-class ASTMaker {
-public:
-  ASTMaker(ASTContext &C) : C(C) {}
-  
-  /// Create a new BinaryOperator representing a simple assignment.
-  BinaryOperator *makeAssignment(const Expr *LHS, const Expr *RHS, QualType Ty);
-  
-  /// Create a new BinaryOperator representing a comparison.
-  BinaryOperator *makeComparison(const Expr *LHS, const Expr *RHS,
-                                 BinaryOperator::Opcode Op);
-  
-  /// Create a new compound stmt using the provided statements.
-  CompoundStmt *makeCompound(ArrayRef<Stmt*>);
-  
-  /// Create a new DeclRefExpr for the referenced variable.
-  DeclRefExpr *makeDeclRefExpr(const VarDecl *D);
-  
-  /// Create a new UnaryOperator representing a dereference.
-  UnaryOperator *makeDereference(const Expr *Arg, QualType Ty);
-  
-  /// Create an implicit cast for an integer conversion.
-  Expr *makeIntegralCast(const Expr *Arg, QualType Ty);
-  
-  /// Create an implicit cast to a builtin boolean type.
-  ImplicitCastExpr *makeIntegralCastToBoolean(const Expr *Arg);
-  
-  // Create an implicit cast for lvalue-to-rvaluate conversions.
-  ImplicitCastExpr *makeLvalueToRvalue(const Expr *Arg, QualType Ty);
-  
-  /// Create an Objective-C bool literal.
-  ObjCBoolLiteralExpr *makeObjCBool(bool Val);
-  
-  /// Create a Return statement.
-  ReturnStmt *makeReturn(const Expr *RetVal);
-  
-private:
-  ASTContext &C;
-};
-}
-
-BinaryOperator *ASTMaker::makeAssignment(const Expr *LHS, const Expr *RHS,
-                                         QualType Ty) {
- return new (C) BinaryOperator(const_cast<Expr*>(LHS), const_cast<Expr*>(RHS),
-                               BO_Assign, Ty, VK_RValue,
-                               OK_Ordinary, SourceLocation(), false);
-}
-
-BinaryOperator *ASTMaker::makeComparison(const Expr *LHS, const Expr *RHS,
-                                         BinaryOperator::Opcode Op) {
-  assert(BinaryOperator::isLogicalOp(Op) ||
-         BinaryOperator::isComparisonOp(Op));
-  return new (C) BinaryOperator(const_cast<Expr*>(LHS),
-                                const_cast<Expr*>(RHS),
-                                Op,
-                                C.getLogicalOperationType(),
-                                VK_RValue,
-                                OK_Ordinary, SourceLocation(), false);
-}
-
-CompoundStmt *ASTMaker::makeCompound(ArrayRef<Stmt *> Stmts) {
-  return new (C) CompoundStmt(C, Stmts, SourceLocation(), SourceLocation());
-}
-
-DeclRefExpr *ASTMaker::makeDeclRefExpr(const VarDecl *D) {
-  DeclRefExpr *DR =
-    DeclRefExpr::Create(/* Ctx = */ C,
-                        /* QualifierLoc = */ NestedNameSpecifierLoc(),
-                        /* TemplateKWLoc = */ SourceLocation(),
-                        /* D = */ const_cast<VarDecl*>(D),
-                        /* isEnclosingLocal = */ false,
-                        /* NameLoc = */ SourceLocation(),
-                        /* T = */ D->getType(),
-                        /* VK = */ VK_LValue);
-  return DR;
-}
-
-UnaryOperator *ASTMaker::makeDereference(const Expr *Arg, QualType Ty) {
-  return new (C) UnaryOperator(const_cast<Expr*>(Arg), UO_Deref, Ty,
-                               VK_LValue, OK_Ordinary, SourceLocation());
-}
-
-ImplicitCastExpr *ASTMaker::makeLvalueToRvalue(const Expr *Arg, QualType Ty) {
-  return ImplicitCastExpr::Create(C, Ty, CK_LValueToRValue,
-                                  const_cast<Expr*>(Arg), 0, VK_RValue);
-}
-
-Expr *ASTMaker::makeIntegralCast(const Expr *Arg, QualType Ty) {
-  if (Arg->getType() == Ty)
-    return const_cast<Expr*>(Arg);
-  
-  return ImplicitCastExpr::Create(C, Ty, CK_IntegralCast,
-                                  const_cast<Expr*>(Arg), 0, VK_RValue);
-}
-
-ImplicitCastExpr *ASTMaker::makeIntegralCastToBoolean(const Expr *Arg) {
-  return ImplicitCastExpr::Create(C, C.BoolTy, CK_IntegralToBoolean,
-                                  const_cast<Expr*>(Arg), 0, VK_RValue);
-}
-
-ObjCBoolLiteralExpr *ASTMaker::makeObjCBool(bool Val) {
-  QualType Ty = C.getBOOLDecl() ? C.getBOOLType() : C.ObjCBuiltinBoolTy;
-  return new (C) ObjCBoolLiteralExpr(Val, Ty, SourceLocation());
-}
-
-ReturnStmt *ASTMaker::makeReturn(const Expr *RetVal) {
-  return new (C) ReturnStmt(SourceLocation(), const_cast<Expr*>(RetVal), 0);
 }
 
 //===----------------------------------------------------------------------===//
