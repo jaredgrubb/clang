@@ -298,7 +298,7 @@ static BodyFarm::FunctionFarmer getFunctionFarmerForGlobalCFunction(const Functi
     return create_OSAtomicCompareAndSwap;
   }
   else {
-    return llvm::StringSwitch<FunctionFarmer>(Name)
+    return llvm::StringSwitch<BodyFarm:::FunctionFarmer>(Name)
           .Case("dispatch_sync", create_dispatch_sync)
           .Case("dispatch_once", create_dispatch_once)
         .Default(NULL);

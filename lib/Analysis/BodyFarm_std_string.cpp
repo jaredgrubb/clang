@@ -49,14 +49,12 @@ BodyFarm::FunctionFarmer getFunctionFarmerForStdString(const CXXMethodDecl *D)
   return &StdStringBodyFarm::create_ctor_body;
 }
 
-
-/// Create a fake body for dispatch_once.
 Stmt *StdStringBodyFarm::create_ctor_body(ASTContext &C, const FunctionDecl *D) {
   switch (D->param_size())
   {
     case 0:
       // string::string()
-      return create_ctor_body_default(C,D);
+      return create_ctor_default(C,D);
 
     case 1:
       // string::string(const allocator_type& a);
@@ -86,4 +84,8 @@ Stmt *StdStringBodyFarm::create_ctor_body(ASTContext &C, const FunctionDecl *D) 
     default:
       return NULL;
   }
+}
+
+Stmt *StdStringBodyFarm::create_ctor_default(ASTContext &C, const FunctionDecl *D) {
+  return NULL;
 }
