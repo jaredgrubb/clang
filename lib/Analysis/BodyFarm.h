@@ -46,7 +46,7 @@ private:
   BodyMap Bodies;
 };
 
-BodyFarm::FunctionFarmer getFunctionFarmerForStdString(const CXXMethodDecl *D);
+Stmt *createBodyForStdString(ASTContext &C, const FunctionDecl *D);
 
 }
 

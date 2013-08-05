@@ -23,30 +23,37 @@
 
 #include "llvm/ADT/StringSwitch.h"
 
+/// XXXXXXX: REMOVE!
+#include <iostream>
+
 using namespace clang;
 
 namespace {
   class StdStringBodyFarm {
   public:
-    static Stmt *create_ctor_body(ASTContext &C, const FunctionDecl *D);
+    static Stmt *create_ctor_body(ASTContext &C, const CXXConstructorDecl *D);
 
   protected:
     // ignore allocator parameters:
-    static Stmt *create_ctor_default(ASTContext &C, const FunctionDecl *D);
-    static Stmt *create_ctor_copy(ASTContext &C, const FunctionDecl *D);
-    static Stmt *create_ctor_move(ASTContext &C, const FunctionDecl *D);
-    static Stmt *create_ctor_char_ptr(ASTContext &C, const FunctionDecl *D);
-    static Stmt *create_ctor_initializer_list(ASTContext &C, const FunctionDecl *D);
-    static Stmt *create_ctor_copy_with_pos(ASTContext &C, const FunctionDecl *D);
-    static Stmt *create_ctor_copy_with_pos_and_size(ASTContext &C, const FunctionDecl *D);
-    static Stmt *create_ctor_char_ptr_with_size(ASTContext &C, const FunctionDecl *D);
-    static Stmt *create_ctor_input_iterator_pair(ASTContext &C, const FunctionDecl *D);  
+    static Stmt *create_ctor_default(ASTContext &C, const CXXConstructorDecl *D);
+    static Stmt *create_ctor_copy(ASTContext &C, const CXXConstructorDecl *D);
+    static Stmt *create_ctor_move(ASTContext &C, const CXXConstructorDecl *D);
+    static Stmt *create_ctor_char_ptr(ASTContext &C, const CXXConstructorDecl *D);
+    static Stmt *create_ctor_initializer_list(ASTContext &C, const CXXConstructorDecl *D);
+    static Stmt *create_ctor_copy_with_pos(ASTContext &C, const CXXConstructorDecl *D);
+    static Stmt *create_ctor_copy_with_pos_and_size(ASTContext &C, const CXXConstructorDecl *D);
+    static Stmt *create_ctor_char_ptr_with_size(ASTContext &C, const CXXConstructorDecl *D);
+    static Stmt *create_ctor_input_iterator_pair(ASTContext &C, const CXXConstructorDecl *D);  
     };
 }
 
-BodyFarm::FunctionFarmer getFunctionFarmerForStdString(const CXXMethodDecl *D)
+Stmt *createBodyForStdString(ASTContext &C, const FunctionDecl *D)
 {
-  return &StdStringBodyFarm::create_ctor_body;
+  if (const CXXConstructorDecl* CD = dyn_cast<CXXConstructorDecl>(D)) {
+    return create_ctor_body(C, CD);
+  }
+
+  return NULL;
 }
 
 Stmt *StdStringBodyFarm::create_ctor_body(ASTContext &C, const FunctionDecl *D) {
@@ -54,6 +61,7 @@ Stmt *StdStringBodyFarm::create_ctor_body(ASTContext &C, const FunctionDecl *D) 
   {
     case 0:
       // string::string()
+      std::cout << "########### ****   default ctor    ##################" << std::endl;
       return create_ctor_default(C,D);
 
     case 1:
