@@ -31,7 +31,14 @@ using namespace clang;
 namespace {
   class StdStringBodyFarm {
   public:
-    static Stmt *create_ctor_body(ASTContext &C, const CXXConstructorDecl *D);
+    static Stmt *create_ctor(ASTContext &C, const CXXConstructorDecl *D);
+
+    static Stmt *create_size(ASTContext &C, const CXXMethodDecl *D);
+    static Stmt *create_length(ASTContext &C, const CXXMethodDecl *D);
+    static Stmt *create_empty(ASTContext &C, const CXXMethodDecl *D);
+
+  protected:
+
 
   protected:
     // ignore allocator parameters:
@@ -44,24 +51,40 @@ namespace {
     static Stmt *create_ctor_copy_with_pos_and_size(ASTContext &C, const CXXConstructorDecl *D);
     static Stmt *create_ctor_char_ptr_with_size(ASTContext &C, const CXXConstructorDecl *D);
     static Stmt *create_ctor_input_iterator_pair(ASTContext &C, const CXXConstructorDecl *D);  
-    };
+  };
+}
+
+template<std::size_t Len>
+static bool isNamed(const NamedDecl *ND, const char (&Str)[Len]) {
+  IdentifierInfo *II = ND->getIdentifier();
+  return II && II->isStr(Str);
 }
 
 Stmt *BodyFarm::createBodyForStdString(ASTContext &C, const FunctionDecl *D)
 {
   if (const CXXConstructorDecl* CD = dyn_cast<CXXConstructorDecl>(D)) {
-    return StdStringBodyFarm::create_ctor_body(C, CD);
+    return StdStringBodyFarm::create_ctor(C, CD);
+  } else if (const CXXMethodDecl* MD = dyn_cast<CXXMethodDecl>(D)) {
+    IdentifierInfo *II = MD->getIdentifier();
+    if (!II) {
+      // fall through to protect against null
+    } else if (II->isStr("size")) {
+      return StdStringBodyFarm::create_size(C, CD);
+    } else if (II->isStr("length")) {
+      return StdStringBodyFarm::create_length(C, CD);
+    } else if (II->isStr("empty")) {
+      return StdStringBodyFarm::create_empty(C, CD);
+    }
   }
 
   return NULL;
 }
 
-Stmt *StdStringBodyFarm::create_ctor_body(ASTContext &C, const CXXConstructorDecl *D) {
+Stmt *StdStringBodyFarm::create_ctor(ASTContext &C, const CXXConstructorDecl *D) {
   switch (D->param_size())
   {
     case 0:
       // string::string()
-      std::cout << "########### ****   default ctor    ##################" << std::endl;
       return create_ctor_default(C,D);
 
     case 1:
@@ -95,5 +118,21 @@ Stmt *StdStringBodyFarm::create_ctor_body(ASTContext &C, const CXXConstructorDec
 }
 
 Stmt *StdStringBodyFarm::create_ctor_default(ASTContext &C, const CXXConstructorDecl *D) {
+  std::cout << "########### ****   default ctor    ##################" << std::endl;
+  return NULL;
+}
+
+Stmt *StdStringBodyFarm::create_size(ASTContext &C, const CXXMethodDecl *D) {
+  std::cout << "########### ****   size    ##################" << std::endl;
+  return NULL;
+}
+
+Stmt *StdStringBodyFarm::create_length(ASTContext &C, const CXXMethodDecl *D) {
+  std::cout << "########### ****   length    ##################" << std::endl;
+  return NULL;
+}
+
+Stmt *StdStringBodyFarm::create_empty(ASTContext &C, const CXXMethodDecl *D) {
+  std::cout << "########### ****   empty    ##################" << std::endl;
   return NULL;
 }
