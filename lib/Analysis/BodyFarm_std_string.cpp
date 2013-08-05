@@ -61,7 +61,7 @@ static bool isNamed(const NamedDecl *ND, const char (&Str)[Len]) {
 }
 
 template<std::size_t Len>
-static const CXXMethodDecl *getMember(const CXXRecordDecl* RD, QualType SigType, const char (&Str)[Len]) {
+static CXXMethodDecl *getMember(const CXXRecordDecl* RD, QualType SigType, const char (&Str)[Len]) {
   CXXRecordDecl::method_iterator i = RD->method_begin();
   CXXRecordDecl::method_iterator e = RD->method_end();
   for( ; i != e; ++i) {
@@ -167,7 +167,7 @@ Stmt *StdStringBodyFarm::create_length(ASTContext &C, const CXXMethodDecl *D) {
   ASTMaker M(C);
 
   // find the "size" member. We can cheat becuase size & length have the same signature
-  const CXXMethodDecl *SizeMethod = getMember(D->getParent(), D->getType(), "size");
+  CXXMethodDecl *SizeMethod = getMember(D->getParent(), D->getType(), "size");
   if (!SizeMethod) {
     // weird.
     return NULL;
