@@ -247,8 +247,6 @@ static bool isNamespaceStd(const NamespaceDecl *ND) {
          ND->getParent()->getRedeclContext()->isTranslationUnit();
 }
 
-typedef Stmt *(*FunctionFarmer)(ASTContext &C, const FunctionDecl *FD);
-
 static const NamespaceDecl *getNamespaceForClass(const CXXRecordDecl *RD)
 {
   const NamespaceDecl *ND = dyn_cast<NamespaceDecl>(RD->getEnclosingNamespaceContext());
@@ -261,7 +259,7 @@ static const NamespaceDecl *getNamespaceForClass(const CXXRecordDecl *RD)
   return ND;
 }
 
-static FunctionFarmer getFunctionFarmerForCxxMethod(const CXXMethodDecl *MD)
+static BodyFarm::FunctionFarmer getFunctionFarmerForCxxMethod(const CXXMethodDecl *MD)
 {
   // get the class decl
   const CXXRecordDecl *RD = MD->getParent();
@@ -279,15 +277,14 @@ static FunctionFarmer getFunctionFarmerForCxxMethod(const CXXMethodDecl *MD)
 
   if (isNamespaceStd(ND)) {
     if (isNamed(RD, "basic_string")) {
-
       std::cout << "########### **** Found basic::string function : " << MD->getNameInfo().getAsString() << "##################" << std::endl;
-
+      return getFunctionFarmerForStdString(MD);
     }
   }
   return NULL;
 }
 
-static FunctionFarmer getFunctionFarmerForGlobalCFunction(const FunctionDecl *FD)
+static BodyFarm::FunctionFarmer getFunctionFarmerForGlobalCFunction(const FunctionDecl *FD)
 {
   if (FD->getIdentifier() == 0)
     return NULL;
@@ -308,7 +305,7 @@ static FunctionFarmer getFunctionFarmerForGlobalCFunction(const FunctionDecl *FD
   }
 }
 
-static FunctionFarmer getFunctionFarmer(const FunctionDecl *FD)
+static BodyFarm::FunctionFarmer getFunctionFarmer(const FunctionDecl *FD)
 {
   // C++ member function
   if (const CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(FD)) {

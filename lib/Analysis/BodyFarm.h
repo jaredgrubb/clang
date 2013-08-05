@@ -24,6 +24,7 @@ namespace clang {
 class ASTContext;
 class Decl;
 class FunctionDecl;
+class CXXMethodDecl;
 class Stmt;
   
 class BodyFarm {
@@ -35,6 +36,11 @@ public:
   
   /// Query on whether BodyFarm will handle the given declaration
   bool canAutosynthesize(const FunctionDecl *D) const;
+
+  typedef Stmt *(*FunctionFarmer)(ASTContext &C, const FunctionDecl *FD);
+
+private:
+  static FunctionFarmer getFunctionFarmerForStdString(const CXXMethodDecl *D);
 
 private:
   typedef llvm::DenseMap<const Decl *, Optional<Stmt *> > BodyMap;

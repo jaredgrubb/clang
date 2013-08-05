@@ -44,7 +44,7 @@ namespace {
     };
 }
 
-Stmt *FunctionFarmer_std_basic_string(ASTContext &C, const FunctionDecl *D)
+BodyFarm::FunctionFarmer BodyFarm::getFunctionFarmerForStdString(const CXXMethodDecl *D)
 {
   return &StdStringBodyFarm::create_ctor_body;
 }
