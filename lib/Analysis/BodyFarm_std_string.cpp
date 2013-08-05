@@ -89,11 +89,11 @@ Stmt *BodyFarm::createBodyForStdString(ASTContext &C, const FunctionDecl *D)
     if (!II) {
       // fall through to protect against null
     } else if (II->isStr("size")) {
-      return StdStringBodyFarm::create_size(C, CD);
+      return StdStringBodyFarm::create_size(C, MD);
     } else if (II->isStr("length")) {
-      return StdStringBodyFarm::create_length(C, CD);
+      return StdStringBodyFarm::create_length(C, MD);
     } else if (II->isStr("empty")) {
-      return StdStringBodyFarm::create_empty(C, CD);
+      return StdStringBodyFarm::create_empty(C, MD);
     }
   }
 
