@@ -40,7 +40,7 @@ public:
   typedef Stmt *(*FunctionFarmer)(ASTContext &C, const FunctionDecl *FD);
 
 public: // semi-private functions
-  Stmt *createBodyForStdString(ASTContext &C, const FunctionDecl *D);
+  static Stmt *createBodyForStdString(ASTContext &C, const FunctionDecl *D);
 
 private:
   typedef llvm::DenseMap<const Decl *, Optional<Stmt *> > BodyMap;
