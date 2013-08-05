@@ -20,7 +20,11 @@
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/ExprObjC.h"
+
 #include "llvm/ADT/StringSwitch.h"
+
+// XXXXXX: REMOVE THIS!
+#include <iostream>
 
 using namespace clang;
 
@@ -259,6 +263,7 @@ static BodyFarm::FunctionFarmer getFunctionFarmerForCxxMethod(const CXXMethodDec
 {
   // get the class decl
   const CXXRecordDecl *RD = MD->getParent();
+  std::cout << "########### FunctionFarmer : CXXRecordDecl=" << RD->getIdentifier()->getNameStart() << "##################" << std::endl;
 
   // get the first non-anonymous namespace for this class:
   const NamespaceDecl *ND = getNamespaceForClass(RD);
@@ -266,6 +271,9 @@ static BodyFarm::FunctionFarmer getFunctionFarmerForCxxMethod(const CXXMethodDec
     // top-level class; not interesting
     return NULL;
   }
+
+  // skip inline namespaces
+  std::cout << "                           : NamespaceDecl=" << ND->getIdentifier()->getNameStart() << "##################" << std::endl;
 
   if (isNamespaceStd(ND)) {
     if (isNamed(RD, "basic_string")) {
@@ -337,4 +345,3 @@ Stmt *BodyFarm::getBody(const FunctionDecl *FD) {
 
   return Val.getValue();
 }
-

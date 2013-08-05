@@ -23,6 +23,9 @@
 
 #include "llvm/ADT/StringSwitch.h"
 
+/// XXXXXXX: REMOVE!
+#include <iostream>
+
 using namespace clang;
 
 namespace {
@@ -137,20 +140,24 @@ Stmt *StdStringBodyFarm::create_ctor(ASTContext &C, const CXXConstructorDecl *D)
 }
 
 Stmt *StdStringBodyFarm::create_ctor_default(ASTContext &C, const CXXConstructorDecl *D) {
+  std::cout << "########### ****   default ctor    ##################" << std::endl;
   return NULL;
 }
 
 Stmt *StdStringBodyFarm::create_dtor(ASTContext &C, const CXXDestructorDecl *D) {
+  std::cout << "########### ****   dtor    ##################" << std::endl;
   // intentionally return empty body; this is one of the primitives that we hook into
   return NULL;
 }
 
 Stmt *StdStringBodyFarm::create_size(ASTContext &C, const CXXMethodDecl *D) {
+  std::cout << "########### ****   size    ##################" << std::endl;
   // intentionally return empty body; this is one of the primitives that we hook into
   return NULL;
 }
 
 Stmt *StdStringBodyFarm::create_length(ASTContext &C, const CXXMethodDecl *D) {
+  std::cout << "########### ****   length    ##################" << std::endl;
 
   // Validate the signature:
   if (D->getNumParams() != 0)
@@ -182,5 +189,6 @@ Stmt *StdStringBodyFarm::create_length(ASTContext &C, const CXXMethodDecl *D) {
 }
 
 Stmt *StdStringBodyFarm::create_empty(ASTContext &C, const CXXMethodDecl *D) {
+  std::cout << "########### ****   empty    ##################" << std::endl;
   return NULL;
 }
