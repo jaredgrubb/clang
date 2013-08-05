@@ -17,6 +17,7 @@
 
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Decl.h"
+#include "clang/AST/DeclCXX.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/ExprObjC.h"
 #include "llvm/ADT/StringSwitch.h"
@@ -24,7 +25,7 @@
 using namespace clang;
 
 //===----------------------------------------------------------------------===//
-// Helper creation functions for constructing faux ASTs.
+// Creation functions for faux ASTs.
 //===----------------------------------------------------------------------===//
 
 static bool isDispatchBlock(QualType Ty) {
@@ -43,13 +44,6 @@ static bool isDispatchBlock(QualType Ty) {
 
   return true;
 }
-
-//===----------------------------------------------------------------------===//
-// Creation functions for faux ASTs.
-//===----------------------------------------------------------------------===//
-
-typedef Stmt *(*FunctionFarmer)(ASTContext &C, const FunctionDecl *D);
-
 /// Create a fake body for dispatch_once.
 static Stmt *create_dispatch_once(ASTContext &C, const FunctionDecl *D) {
   // Check if we have at least two parameters.
@@ -234,36 +228,113 @@ static Stmt *create_OSAtomicCompareAndSwap(ASTContext &C, const FunctionDecl *D)
   return If;  
 }
 
-Stmt *BodyFarm::getBody(const FunctionDecl *D) {
-  D = D->getCanonicalDecl();
+//===----------------------------------------------------------------------===//
+// Detection for whether fake ASTs can/should be created
+//===----------------------------------------------------------------------===//
+
+template<std::size_t Len>
+static bool isNamed(const NamedDecl *ND, const char (&Str)[Len]) {
+  IdentifierInfo *II = ND->getIdentifier();
+  return II && II->isStr(Str);
+}
+
+static bool isNamespaceStd(const NamespaceDecl *ND) {
+  return ND && isNamed(ND, "std") &&
+         ND->getParent()->getRedeclContext()->isTranslationUnit();
+}
+
+static const NamespaceDecl *getNamespaceForClass(const CXXRecordDecl *RD)
+{
+  const NamespaceDecl *ND = dyn_cast<NamespaceDecl>(RD->getEnclosingNamespaceContext());
+
+  // recurse outward until we hit a non-inline namespace (or hit the global)
+  while(ND && ND->isInlineNamespace()) {
+    ND = dyn_cast<NamespaceDecl>(ND->getParent());
+  }
+
+  return ND;
+}
+
+static BodyFarm::FunctionFarmer getFunctionFarmerForCxxMethod(const CXXMethodDecl *MD)
+{
+  // get the class decl
+  const CXXRecordDecl *RD = MD->getParent();
+
+  // get the first non-anonymous namespace for this class:
+  const NamespaceDecl *ND = getNamespaceForClass(RD);
+  if (!ND) {
+    // top-level class; not interesting
+    return NULL;
+  }
+
+  if (isNamespaceStd(ND)) {
+    if (isNamed(RD, "basic_string")) {
+      return &BodyFarm::createBodyForStdString;
+    }
+  }
+  return NULL;
+}
+
+static BodyFarm::FunctionFarmer getFunctionFarmerForGlobalCFunction(const FunctionDecl *FD)
+{
+  if (FD->getIdentifier() == 0)
+    return NULL;
+
+  StringRef Name = FD->getName();
+  if (Name.empty())
+    return NULL;
+
+  if (Name.startswith("OSAtomicCompareAndSwap") ||
+      Name.startswith("objc_atomicCompareAndSwap")) {
+    return create_OSAtomicCompareAndSwap;
+  }
+  else {
+    return llvm::StringSwitch<BodyFarm::FunctionFarmer>(Name)
+          .Case("dispatch_sync", create_dispatch_sync)
+          .Case("dispatch_once", create_dispatch_once)
+        .Default(NULL);
+  }
+}
+
+static BodyFarm::FunctionFarmer getFunctionFarmer(const FunctionDecl *FD)
+{
+  // C++ member function
+  if (const CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(FD)) {
+    return getFunctionFarmerForCxxMethod(MD);
+  }
+
+  // One day: check for handled non-member C++ functions
+
+  const DeclContext *DC = FD->getDeclContext()->getRedeclContext();
+  if (DC->isTranslationUnit()) {
+    // Global C functions now, which cannot be in a namespace
+    return getFunctionFarmerForGlobalCFunction(FD);
+  }
+
+  return NULL;
+}
+
+bool BodyFarm::canAutosynthesize(const FunctionDecl *FD) const
+{
+  FD = FD->getCanonicalDecl();
+  return getFunctionFarmer(FD);
+}
+
+Stmt *BodyFarm::getBody(const FunctionDecl *FD) {
+  FD = FD->getCanonicalDecl();
   
-  Optional<Stmt *> &Val = Bodies[D];
+  // use cached one if we have one
+  Optional<Stmt *> &Val = Bodies[FD];
   if (Val.hasValue())
     return Val.getValue();
   
   Val = 0;
   
-  if (D->getIdentifier() == 0)
-    return 0;
-
-  StringRef Name = D->getName();
-  if (Name.empty())
-    return 0;
-
-  FunctionFarmer FF;
-
-  if (Name.startswith("OSAtomicCompareAndSwap") ||
-      Name.startswith("objc_atomicCompareAndSwap")) {
-    FF = create_OSAtomicCompareAndSwap;
+  FunctionFarmer FF = getFunctionFarmer(FD);
+  if (FF) { 
+    Val = FF(C, FD); 
   }
-  else {
-    FF = llvm::StringSwitch<FunctionFarmer>(Name)
-          .Case("dispatch_sync", create_dispatch_sync)
-          .Case("dispatch_once", create_dispatch_once)
-        .Default(NULL);
-  }
-  
-  if (FF) { Val = FF(C, D); }
+
   return Val.getValue();
 }
 

@@ -21,10 +21,12 @@
 namespace clang {
   class ASTContext;
   class VarDecl;
+  class CXXMethodDecl;
   class Expr;
   class DeclRefExpr;
   class ImplicitCastExpr;
   class ObjCBoolLiteralExpr;
+  class CXXMemberCallExpr;
   class QualType;
   class Stmt;
   class CompoundStmt;

@@ -44,10 +44,13 @@ AnalysisDeclContext::AnalysisDeclContext(AnalysisDeclContextManager *Mgr,
     forcedBlkExprs(0),
     builtCFG(false),
     builtCompleteCFG(false),
+    isAutosynthesized(false),
     ReferencedBlockVars(0),
     ManagedAnalyses(0)
 {  
   cfgBuildOptions.forcedBlkExprs = &forcedBlkExprs;
+
+  checkShouldAutosynthesize();
 }
 
 AnalysisDeclContext::AnalysisDeclContext(AnalysisDeclContextManager *Mgr,
@@ -57,10 +60,13 @@ AnalysisDeclContext::AnalysisDeclContext(AnalysisDeclContextManager *Mgr,
   forcedBlkExprs(0),
   builtCFG(false),
   builtCompleteCFG(false),
+  isAutosynthesized(false),
   ReferencedBlockVars(0),
   ManagedAnalyses(0)
 {  
   cfgBuildOptions.forcedBlkExprs = &forcedBlkExprs;
+
+  checkShouldAutosynthesize();
 }
 
 AnalysisDeclContextManager::AnalysisDeclContextManager(bool useUnoptimizedCFG,
@@ -89,15 +95,21 @@ static BodyFarm &getBodyFarm(ASTContext &C) {
   return *BF;
 }
 
-Stmt *AnalysisDeclContext::getBody(bool &IsAutosynthesized) const {
-  IsAutosynthesized = false;
+void AnalysisDeclContext::checkShouldAutosynthesize() {
   if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(D)) {
-    Stmt *Body = FD->getBody();
-    if (!Body && Manager && Manager->synthesizeBodies()) {
-      IsAutosynthesized = true;
+    if (Manager && Manager->synthesizeBodies()) {
+      isAutosynthesized = getBodyFarm(getASTContext()).canAutosynthesize(FD);
+    }
+  }
+}
+
+Stmt *AnalysisDeclContext::getBody(bool &IsAutosynthesized) const {
+  IsAutosynthesized = isAutosynthesized;
+  if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(D)) {
+    if (IsAutosynthesized) {
       return getBodyFarm(getASTContext()).getBody(FD);
     }
-    return Body;
+    return FD->getBody();
   }
   else if (const ObjCMethodDecl *MD = dyn_cast<ObjCMethodDecl>(D))
     return MD->getBody();
@@ -116,9 +128,7 @@ Stmt *AnalysisDeclContext::getBody() const {
 }
 
 bool AnalysisDeclContext::isBodyAutosynthesized() const {
-  bool Tmp;
-  getBody(Tmp);
-  return Tmp;
+  return isAutosynthesized;
 }
 
 const ImplicitParamDecl *AnalysisDeclContext::getSelfDecl() const {

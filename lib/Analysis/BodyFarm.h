@@ -24,6 +24,7 @@ namespace clang {
 class ASTContext;
 class Decl;
 class FunctionDecl;
+class CXXMethodDecl;
 class Stmt;
   
 class BodyFarm {
@@ -33,12 +34,21 @@ public:
   /// Factory method for creating bodies for ordinary functions.
   Stmt *getBody(const FunctionDecl *D);
   
+  /// Query on whether BodyFarm will handle the given declaration
+  bool canAutosynthesize(const FunctionDecl *D) const;
+
+  typedef Stmt *(*FunctionFarmer)(ASTContext &C, const FunctionDecl *FD);
+
+public: // semi-private functions
+  static Stmt *createBodyForStdString(ASTContext &C, const FunctionDecl *D);
+
 private:
   typedef llvm::DenseMap<const Decl *, Optional<Stmt *> > BodyMap;
 
   ASTContext &C;
   BodyMap Bodies;
 };
+
 }
 
 #endif
