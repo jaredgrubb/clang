@@ -32,6 +32,7 @@ namespace {
   class StdStringBodyFarm {
   public:
     static Stmt *create_ctor(ASTContext &C, const CXXConstructorDecl *D);
+    static Stmt *create_dtor(ASTContext &C, const CXXDestructorDecl *D);
 
     static Stmt *create_size(ASTContext &C, const CXXMethodDecl *D);
     static Stmt *create_length(ASTContext &C, const CXXMethodDecl *D);
@@ -64,6 +65,8 @@ Stmt *BodyFarm::createBodyForStdString(ASTContext &C, const FunctionDecl *D)
 {
   if (const CXXConstructorDecl* CD = dyn_cast<CXXConstructorDecl>(D)) {
     return StdStringBodyFarm::create_ctor(C, CD);
+  } else if (const CXXDestructorDecl* DD = dyn_cast<CXXDestructorDecl>(D)) {
+    return StdStringBodyFarm::create_dtor(C, DD);
   } else if (const CXXMethodDecl* MD = dyn_cast<CXXMethodDecl>(D)) {
     IdentifierInfo *II = MD->getIdentifier();
     if (!II) {

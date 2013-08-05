@@ -278,7 +278,7 @@ static BodyFarm::FunctionFarmer getFunctionFarmerForCxxMethod(const CXXMethodDec
   if (isNamespaceStd(ND)) {
     if (isNamed(RD, "basic_string")) {
       std::cout << "########### **** Found basic::string function : " << MD->getNameInfo().getAsString() << "##################" << std::endl;
-      RD->dump();
+      MD->dump();
       return &BodyFarm::createBodyForStdString;
     }
   }
