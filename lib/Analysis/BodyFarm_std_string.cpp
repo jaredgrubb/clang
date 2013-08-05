@@ -23,6 +23,8 @@
 
 #include "llvm/ADT/StringSwitch.h"
 
+using namespace clang;
+
 namespace {
   class StdStringBodyFarm {
   public:
@@ -42,6 +44,10 @@ namespace {
     };
 }
 
+Stmt *FunctionFarmer_std_basic_string(ASTContext &C, const FunctionDecl *D)
+{
+  return &StdStringBodyFarm::create_ctor_body;
+}
 
 
 /// Create a fake body for dispatch_once.

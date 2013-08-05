@@ -253,6 +253,7 @@ static const NamespaceDecl *getNamespaceForClass(const CXXRecordDecl *RD)
 {
   const NamespaceDecl *ND = dyn_cast<NamespaceDecl>(RD->getEnclosingNamespaceContext());
 
+  // recurse outward until we hit a non-inline namespace (or hit the global)
   while(ND && ND->isInlineNamespace()) {
     ND = dyn_cast<NamespaceDecl>(ND->getParent());
   }
