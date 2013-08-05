@@ -104,7 +104,7 @@ CXXMemberCallExpr *ASTMaker::makeCxxMemberCall(Expr* Object, CXXMethodDecl *Meth
 
   QualType ResultType = Method->getResultType();
   ExprValueKind VK = Expr::getValueKindForType(ResultType);
-  ResultType = ResultType.getNonLValueExprType(Context);
+  ResultType = ResultType.getNonLValueExprType(C);
 
   return new (C) CXXMemberCallExpr(C, ME, Args, ResultType, VK, SourceLocation());
 }
