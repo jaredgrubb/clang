@@ -155,8 +155,9 @@ Stmt *StdStringBodyFarm::create_size(ASTContext &C, const CXXMethodDecl *D) {
 
 Stmt *StdStringBodyFarm::create_length(ASTContext &C, const CXXMethodDecl *D) {
   std::cout << "########### ****   length    ##################" << std::endl;
+  D->dump();
   // Validate the signature:
-  if (D->param_size() != 0)
+  if (D->getNumParams() != 0)
     return NULL;
 
   // synthesize:
