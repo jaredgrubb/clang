@@ -50,13 +50,13 @@ namespace {
 Stmt *createBodyForStdString(ASTContext &C, const FunctionDecl *D)
 {
   if (const CXXConstructorDecl* CD = dyn_cast<CXXConstructorDecl>(D)) {
-    return create_ctor_body(C, CD);
+    return StdStringBodyFarm::create_ctor_body(C, CD);
   }
 
   return NULL;
 }
 
-Stmt *StdStringBodyFarm::create_ctor_body(ASTContext &C, const FunctionDecl *D) {
+Stmt *StdStringBodyFarm::create_ctor_body(ASTContext &C, const CXXConstructorDecl *D) {
   switch (D->param_size())
   {
     case 0:
@@ -94,6 +94,6 @@ Stmt *StdStringBodyFarm::create_ctor_body(ASTContext &C, const FunctionDecl *D) 
   }
 }
 
-Stmt *StdStringBodyFarm::create_ctor_default(ASTContext &C, const FunctionDecl *D) {
+Stmt *StdStringBodyFarm::create_ctor_default(ASTContext &C, const CXXConstructorDecl *D) {
   return NULL;
 }
