@@ -90,7 +90,7 @@ ReturnStmt *ASTMaker::makeReturn(const Expr *RetVal) {
   return new (C) ReturnStmt(SourceLocation(), const_cast<Expr*>(RetVal), 0);
 }
 
-CXXMemberCallExpr *makeCxxMemberCall(Expr* Object, CXXMethodDecl *Method, ArrayRef<Expr*> Args) {
+CXXMemberCallExpr *ASTMaker::makeCxxMemberCall(Expr* Object, CXXMethodDecl *Method, ArrayRef<Expr*> Args) {
   MemberExpr* ME = new (C) MemberExpr(
     Object,
     false,  // arrow

@@ -74,7 +74,7 @@ public:
   /// Create a Return statement.
   ReturnStmt *makeReturn(const Expr *RetVal);
   
-  CXXMemberCallExpr *makeCxxMemberCall(Expr* object, CXXMethodDecl *member, ExprValueKind VK, ArrayRef<Expr*> Args);
+  CXXMemberCallExpr *makeCxxMemberCall(Expr* object, CXXMethodDecl *member, ArrayRef<Expr*> Args);
 
 private:
   ASTContext &C;
