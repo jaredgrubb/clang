@@ -21,10 +21,12 @@
 namespace clang {
   class ASTContext;
   class VarDecl;
+  class CXXMethodDecl;
   class Expr;
   class DeclRefExpr;
   class ImplicitCastExpr;
   class ObjCBoolLiteralExpr;
+  class CXXMemberCallExpr;
   class QualType;
   class Stmt;
   class CompoundStmt;
@@ -72,6 +74,8 @@ public:
   /// Create a Return statement.
   ReturnStmt *makeReturn(const Expr *RetVal);
   
+  CXXMemberCallExpr *makeCxxMemberCall(Expr* object, CXXMethodDecl *member, ExprValueKind VK, ArrayRef<Expr*> Args);
+
 private:
   ASTContext &C;
 };

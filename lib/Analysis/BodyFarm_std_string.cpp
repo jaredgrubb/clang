@@ -40,7 +40,6 @@ namespace {
 
   protected:
 
-
   protected:
     // ignore allocator parameters:
     static Stmt *create_ctor_default(ASTContext &C, const CXXConstructorDecl *D);
@@ -60,6 +59,24 @@ static bool isNamed(const NamedDecl *ND, const char (&Str)[Len]) {
   IdentifierInfo *II = ND->getIdentifier();
   return II && II->isStr(Str);
 }
+
+template<std::size_t Len>
+static const CXXMethodDecl *getMember(const CXXRecordDecl* RD, QualType SigType, const char (&Str)[Len]) {
+  CXXRecordDecl::method_iterator i = RD->method_begin();
+  CXXRecordDecl::method_iterator e = RD->method_end();
+  for( ; i != e; ++i) {
+    if (i->getType() != SigType) {
+      continue;
+    }
+
+    if (isNamed(*i, Str)) {
+      return *i;
+    }
+  }
+
+  return NULL;
+}
+
 
 Stmt *BodyFarm::createBodyForStdString(ASTContext &C, const FunctionDecl *D)
 {
@@ -137,7 +154,30 @@ Stmt *StdStringBodyFarm::create_size(ASTContext &C, const CXXMethodDecl *D) {
 
 Stmt *StdStringBodyFarm::create_length(ASTContext &C, const CXXMethodDecl *D) {
   std::cout << "########### ****   length    ##################" << std::endl;
-  return NULL;
+  // Validate the signature:
+  if (D->param_size() != 0)
+    return NULL;
+
+  // synthesize:
+  //   size_t string::length() const {
+  //       return size();
+  //   }
+
+  ASTMaker M;
+
+  // find the "size" member. We can cheat becuase size & length have the same signature
+  const CXXMethodDecl *SizeMethod = getMember(D->getParent(), D->getType(), "size");
+  if (!SizeMethod) {
+    // weird.
+    return NULL;
+  }
+
+  CXXThisExpr *This = new (C) CXXThisExpr(SourceLocation(), D->getThisType(C), true);
+
+  // alias to "size", since it's the same thing
+  CXXMemberCallExpr *SizeCall = makeCxxMemberCall(This, SizeMethod, ArrayRef<Expr*>());
+
+  return M.makeReturn(SizeCall);
 }
 
 Stmt *StdStringBodyFarm::create_empty(ASTContext &C, const CXXMethodDecl *D) {

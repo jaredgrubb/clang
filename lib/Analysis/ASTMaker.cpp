@@ -18,6 +18,7 @@
 #include "clang/AST/Decl.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/ExprObjC.h"
+#include "clang/AST/ExprCXX.h"
 
 using namespace clang;
 
@@ -87,4 +88,22 @@ ObjCBoolLiteralExpr *ASTMaker::makeObjCBool(bool Val) {
 
 ReturnStmt *ASTMaker::makeReturn(const Expr *RetVal) {
   return new (C) ReturnStmt(SourceLocation(), const_cast<Expr*>(RetVal), 0);
+}
+
+CXXMemberCallExpr *makeCxxMemberCall(Expr* Object, CXXMethodDecl *Method, ArrayRef<Expr*> Args) {
+  MemberExpr* ME = new (C) MemberExpr(
+    Object,
+    false,  // arrow
+    Method,
+    SourceLocation(),
+    C.BoundMemberTy,
+    VK_RValue, // right?
+    OK_Ordinary
+  );
+
+  QualType ResultType = Method->getResultType();
+  ExprValueKind VK = Expr::getValueKindForType(ResultType);
+  ResultType = ResultType.getNonLValueExprType(Context);
+
+  return new (C) CXXMemberCallExpr(C, ME, Args, ResultType, VK, SourceLocation());
 }
