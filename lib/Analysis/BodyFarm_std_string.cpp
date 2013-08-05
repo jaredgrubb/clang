@@ -125,6 +125,11 @@ Stmt *StdStringBodyFarm::create_ctor_default(ASTContext &C, const CXXConstructor
   return NULL;
 }
 
+Stmt *StdStringBodyFarm::create_dtor(ASTContext &C, const CXXDestructorDecl *D) {
+  std::cout << "########### ****   dtor    ##################" << std::endl;
+  return NULL;
+}
+
 Stmt *StdStringBodyFarm::create_size(ASTContext &C, const CXXMethodDecl *D) {
   std::cout << "########### ****   size    ##################" << std::endl;
   return NULL;
