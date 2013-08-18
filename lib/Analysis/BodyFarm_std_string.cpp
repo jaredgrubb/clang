@@ -52,8 +52,41 @@ namespace {
     static Stmt *create_ctor_copy_with_pos(ASTContext &C, const CXXConstructorDecl *D);
     static Stmt *create_ctor_copy_with_pos_and_size(ASTContext &C, const CXXConstructorDecl *D);
     static Stmt *create_ctor_char_ptr_with_size(ASTContext &C, const CXXConstructorDecl *D);
-    static Stmt *create_ctor_input_iterator_pair(ASTContext &C, const CXXConstructorDecl *D);  
+    static Stmt *create_ctor_input_iterator_pair(ASTContext &C, const CXXConstructorDecl *D);
+
+  protected:
+    FunctionDecl* get_FD_csa_hook_content_set(ASTContext &C);
+
+    FunctionDecl* createHookFunction(ASTContext &C);
+
+  protected: // FunctionDecl hooks:
+    FunctionDecl *FD_csa_hook_content_set;
   };
+}
+
+FunctionDecl* StdStringBodyFarm::createHookFunction(ASTContext &C, const char* name)
+{
+  return FunctionDecl::Create(
+    /* ASTContext */ C, 
+    /* DeclContext */ C.getTranslationUnitDecl(), // maybe?
+    /* SourceLocation */ SourceLocation(),
+    /* SourceLocation */ SourceLocation(),
+    /* DeclarationName */ &C.Idents.get(name),
+    /* QualType */ C.VoidTy, 
+    /* TypeSourceInfo */ 0,  // ??
+    /* StorageClass */ SC_Static, // ??
+    /* isInlineSpecified */ false,
+    /* hasWrittenPrototype */  false // ?? 
+  );
+}
+
+
+FunctionDecl* StdStringBodyFarm::get_FD_csa_hook_content_set(ASTContext &C)
+{
+  if (!FD_csa_hook_content_set) {
+    FD_csa_hook_content_set = createHookFunction(C, "_csa_hook_content_set");
+  }
+  return FD_csa_hook_content_set;
 }
 
 template<std::size_t Len>
@@ -141,7 +174,30 @@ Stmt *StdStringBodyFarm::create_ctor(ASTContext &C, const CXXConstructorDecl *D)
 
 Stmt *StdStringBodyFarm::create_ctor_default(ASTContext &C, const CXXConstructorDecl *D) {
   std::cout << "########### ****   default ctor    ##################" << std::endl;
-  return NULL;
+
+  // 
+  // synthesize:
+  // 
+  //   basic_string::basic_string() const {
+  //       _csa_hook_content_set(this, NULL, 0);  // (1)
+  //   }
+  // 
+
+  ASTMaker M(C);
+
+  CXXThisExpr *This = new (C) CXXThisExpr(SourceLocation(), D->getThisType(C), true);
+
+  // (1)
+  FunctionDecl* FDHook = get_FD_csa_hook_content_set();
+  Expr* Args[3] = {
+    This,
+    M.makeNullPtr(C.getPointerType(C.getConstType(C.CharTy))), // (const char*) NULL
+    M.makeInteger(0)
+  };
+  CallExpr *CE_Set = M.makeCall(FDHook, Args);
+
+  // Normally would wrap in CompoundStmt, but we have only one Stmt
+  return CE_Set;
 }
 
 Stmt *StdStringBodyFarm::create_dtor(ASTContext &C, const CXXDestructorDecl *D) {

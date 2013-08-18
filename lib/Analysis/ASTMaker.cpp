@@ -87,8 +87,28 @@ ObjCBoolLiteralExpr *ASTMaker::makeObjCBool(bool Val) {
   return new (C) ObjCBoolLiteralExpr(Val, Ty, SourceLocation());
 }
 
+IntegerLiteral *ASTMaker::makeInteger(int Val) {
+  return IntegerLiteral::Create(C, llvm::APInt(C.getTypeSize(C.IntTy), Val),
+                                C.IntTy, SourceLocation());
+}
+
+ImplicitCastExpr *ASTMaker::makeNullPtr(QualType PointerType) {
+  return ImplicitCastExpr::Create(C, PointerType, CK_NullToPointer,
+                                  makeInteger(0), 0, VK_RValue);
+}
+
 ReturnStmt *ASTMaker::makeReturn(const Expr *RetVal) {
   return new (C) ReturnStmt(SourceLocation(), const_cast<Expr*>(RetVal), 0);
+}
+
+CallExpr *ASTMaker::makeCall(FunctionDecl *Function, ArrayRef<Expr*> Args) {
+  DeclRefExpr *DR = makeDeclRefExpr(Function);
+  ImplicitCastExpr *ICE = ImplicitCastExpr::Create(C, Function->getType(), 
+                            CK_FunctionToPointerDecay, const_cast<Expr*>(DR), 
+                            0, VK_RValue);
+
+  QualType ResultType = Function->getCallResultType(C);
+  return new (C) CallExpr(C, ICE, Args, ResultType, VK_RValue, SourceLocation());
 }
 
 CXXMemberCallExpr *ASTMaker::makeCxxMemberCall(Expr* Object, CXXMethodDecl *Method, ArrayRef<Expr*> Args) {

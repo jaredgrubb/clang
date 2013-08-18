@@ -65,14 +65,23 @@ public:
   /// Create an implicit cast to a builtin boolean type.
   ImplicitCastExpr *makeIntegralCastToBoolean(const Expr *Arg);
   
-  // Create an implicit cast for lvalue-to-rvaluate conversions.
+  /// Create an implicit cast for lvalue-to-rvaluate conversions.
   ImplicitCastExpr *makeLvalueToRvalue(const Expr *Arg, QualType Ty);
   
+  /// Create a null pointer of the given type.
+  ImplicitCastExpr *makeNullPtr(QualType PointerType)
+
+  /// Create an integer literal type
+  IntegerLiteral *makeInteger(int Val);
+
   /// Create an Objective-C bool literal.
   ObjCBoolLiteralExpr *makeObjCBool(bool Val);
   
   /// Create a Return statement.
   ReturnStmt *makeReturn(const Expr *RetVal);
+
+  /// Create a function call expression
+  CallExpr *makeCall(FunctionDecl *function, ArrayRef<Expr*> Args);
   
   CXXMemberCallExpr *makeCxxMemberCall(Expr* object, CXXMethodDecl *member, ArrayRef<Expr*> Args);
 
