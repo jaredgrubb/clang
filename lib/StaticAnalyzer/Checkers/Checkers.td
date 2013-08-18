@@ -188,6 +188,10 @@ def BlockRefCaptureChecker : Checker<"BlockRefCapture">,
   HelpText<"Check for blocks that capture-by-reference for stack variables.">,
   DescFile<"BlockRefCaptureChecker.cpp">;
 
+def StdStringContentChecker : Checker<"StdStringContent">,
+  HelpText<"Check for incorrect access to std::string content and out-of-bounds access.">,
+  DescFile<"StdStringContentChecker.cpp">;
+
 } // end: "alpha.cplusplus"
 
 //===----------------------------------------------------------------------===//
