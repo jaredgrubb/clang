@@ -55,38 +55,60 @@ namespace {
     static Stmt *create_ctor_input_iterator_pair(ASTContext &C, const CXXConstructorDecl *D);
 
   protected:
-    FunctionDecl* get_FD_csa_hook_content_set(ASTContext &C);
+    static FunctionDecl* get_FD_csa_hook_content_set(ASTContext &C, ASTMaker &M);
+    static FunctionDecl* get_FD_csa_hook_content_get_size(ASTContext &C, ASTMaker &M);
 
-    FunctionDecl* createHookFunction(ASTContext &C);
+    static CallExpr* call_csa_hook_content_set(ASTContext &C, ASTMaker &M, CXXThisExpr *This, Expr *Content, Expr *Size);
+    static CallExpr* call_csa_hook_content_get_size(ASTContext &C, ASTMaker &M, CXXThisExpr *This);
 
   protected: // FunctionDecl hooks:
-    FunctionDecl *FD_csa_hook_content_set;
+    static FunctionDecl *FD_csa_hook_content_set;
+    static FunctionDecl *FD_csa_hook_content_get_size;
   };
 }
 
-FunctionDecl* StdStringBodyFarm::createHookFunction(ASTContext &C, const char* name)
-{
-  return FunctionDecl::Create(
-    /* ASTContext */ C, 
-    /* DeclContext */ C.getTranslationUnitDecl(), // maybe?
-    /* SourceLocation */ SourceLocation(),
-    /* SourceLocation */ SourceLocation(),
-    /* DeclarationName */ &C.Idents.get(name),
-    /* QualType */ C.VoidTy, 
-    /* TypeSourceInfo */ 0,  // ??
-    /* StorageClass */ SC_Static, // ??
-    /* isInlineSpecified */ false,
-    /* hasWrittenPrototype */  false // ?? 
-  );
-}
+FunctionDecl *StdStringBodyFarm::FD_csa_hook_content_set = 0;
+FunctionDecl *StdStringBodyFarm::FD_csa_hook_content_get_size = 0;
 
-
-FunctionDecl* StdStringBodyFarm::get_FD_csa_hook_content_set(ASTContext &C)
+FunctionDecl* StdStringBodyFarm::get_FD_csa_hook_content_set(ASTContext &C, ASTMaker &M)
 {
   if (!FD_csa_hook_content_set) {
-    FD_csa_hook_content_set = createHookFunction(C, "_csa_hook_content_set");
+    QualType ArgTypes[3] = {
+      C.getPointerType(C.getConstType(C.VoidTy)), 
+      C.getPointerType(C.getConstType(C.CharTy)), 
+      C.getSizeType()
+    };
+
+    FD_csa_hook_content_set = M.makeFunction("_csa_hook_content_set", C.VoidTy, ArgTypes);
   }
   return FD_csa_hook_content_set;
+}
+
+FunctionDecl* StdStringBodyFarm::get_FD_csa_hook_content_get_size(ASTContext &C, ASTMaker &M)
+{
+  if (!FD_csa_hook_content_get_size) {
+    QualType ArgTypes[1] = {
+      C.getPointerType(C.getConstType(C.VoidTy))
+    };
+
+    FD_csa_hook_content_get_size = M.makeFunction("_csa_hook_content_get_size", C.getSizeType(), ArgTypes);
+  }
+  return FD_csa_hook_content_get_size;
+}
+
+CallExpr* StdStringBodyFarm::call_csa_hook_content_get_size(ASTContext &C, ASTMaker &M, CXXThisExpr *This)
+{
+  FunctionDecl* FD = get_FD_csa_hook_content_get_size(C, M);
+  Expr* Args[1] = { This };
+  return M.makeCall(FD, Args);
+}
+
+CallExpr* StdStringBodyFarm::call_csa_hook_content_set(ASTContext &C, ASTMaker &M, 
+  CXXThisExpr *This, Expr *Content, Expr *Size)
+{
+  FunctionDecl* FD = get_FD_csa_hook_content_set(C, M);
+  Expr* Args[3] = { This, Content, Size };
+  return M.makeCall(FD, Args);
 }
 
 template<std::size_t Len>
@@ -188,15 +210,11 @@ Stmt *StdStringBodyFarm::create_ctor_default(ASTContext &C, const CXXConstructor
   CXXThisExpr *This = new (C) CXXThisExpr(SourceLocation(), D->getThisType(C), true);
 
   // (1)
-  FunctionDecl* FDHook = get_FD_csa_hook_content_set();
-  Expr* Args[3] = {
-    This,
-    M.makeNullPtr(C.getPointerType(C.getConstType(C.CharTy))), // (const char*) NULL
-    M.makeInteger(0)
-  };
-  CallExpr *CE_Set = M.makeCall(FDHook, Args);
+  QualType ConstCharPtrTy = C.getPointerType(C.getConstType(C.CharTy));
+  Expr *Null = M.makeNullPtr(ConstCharPtrTy);
+  Expr *Zero = M.makeInteger(0);
+  CallExpr *CE_Set = call_csa_hook_content_set(C, M, This, Null, Zero);
 
-  // Normally would wrap in CompoundStmt, but we have only one Stmt
   return CE_Set;
 }
 
@@ -208,43 +226,51 @@ Stmt *StdStringBodyFarm::create_dtor(ASTContext &C, const CXXDestructorDecl *D) 
 
 Stmt *StdStringBodyFarm::create_size(ASTContext &C, const CXXMethodDecl *D) {
   std::cout << "########### ****   size    ##################" << std::endl;
-  // intentionally return empty body; this is one of the primitives that we hook into
-  return NULL;
-}
-
-Stmt *StdStringBodyFarm::create_length(ASTContext &C, const CXXMethodDecl *D) {
-  std::cout << "########### ****   length    ##################" << std::endl;
-
-  // Validate the signature:
-  if (D->getNumParams() != 0)
-    return NULL;
 
   // 
   // synthesize:
   // 
-  //   size_t string::length() const {
-  //       return size();
-  //   }
-  // 
+  // size_type size() const
+  // {
+  //     return _csa_hook_content_get_size(this);  // (1)
+  // }
 
   ASTMaker M(C);
 
-  // find the "size" member. We can cheat becuase size & length have the same signature
-  CXXMethodDecl *SizeMethod = getMember(D->getParent(), D->getType(), "size");
-  if (!SizeMethod) {
-    // weird.
-    return NULL;
-  }
-
   CXXThisExpr *This = new (C) CXXThisExpr(SourceLocation(), D->getThisType(C), true);
 
-  // alias to "size", since it's the same thing
-  CXXMemberCallExpr *SizeCall = M.makeCxxMemberCall(This, SizeMethod, ArrayRef<Expr*>());
+  // (1)
+  CallExpr *CE_GetSize = call_csa_hook_content_get_size(C, M, This);
 
-  return M.makeReturn(SizeCall);
+  return M.makeReturn(CE_GetSize);
+}
+
+Stmt *StdStringBodyFarm::create_length(ASTContext &C, const CXXMethodDecl *D) {
+  // Size and length are the same thing, so just reuse it!
+  return create_size(C, D);
 }
 
 Stmt *StdStringBodyFarm::create_empty(ASTContext &C, const CXXMethodDecl *D) {
   std::cout << "########### ****   empty    ##################" << std::endl;
-  return NULL;
+
+  // 
+  // synthesize:
+  // 
+  // bool empty() const {
+  //     return _csa_hook_content_get_size(this) == 0;  // (1)
+  // }
+
+  ASTMaker M(C);
+
+  CXXThisExpr *This = new (C) CXXThisExpr(SourceLocation(), D->getThisType(C), true);
+
+  // (1)
+  CallExpr *CE_GetSize = call_csa_hook_content_get_size(C, M, This);
+  Expr *Comparison =
+    M.makeComparison(
+      CE_GetSize,
+      M.makeInteger(0),
+      BO_EQ);
+
+  return M.makeReturn(Comparison);
 }

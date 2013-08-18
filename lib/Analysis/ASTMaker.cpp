@@ -46,12 +46,12 @@ CompoundStmt *ASTMaker::makeCompound(ArrayRef<Stmt *> Stmts) {
   return new (C) CompoundStmt(C, Stmts, SourceLocation(), SourceLocation());
 }
 
-DeclRefExpr *ASTMaker::makeDeclRefExpr(const VarDecl *D) {
+DeclRefExpr *ASTMaker::makeDeclRefExpr(const ValueDecl *D) {
   DeclRefExpr *DR =
     DeclRefExpr::Create(/* Ctx = */ C,
                         /* QualifierLoc = */ NestedNameSpecifierLoc(),
                         /* TemplateKWLoc = */ SourceLocation(),
-                        /* D = */ const_cast<VarDecl*>(D),
+                        /* D = */ const_cast<ValueDecl*>(D),
                         /* isEnclosingLocal = */ false,
                         /* NameLoc = */ SourceLocation(),
                         /* T = */ D->getType(),
@@ -101,13 +101,45 @@ ReturnStmt *ASTMaker::makeReturn(const Expr *RetVal) {
   return new (C) ReturnStmt(SourceLocation(), const_cast<Expr*>(RetVal), 0);
 }
 
+FunctionDecl *ASTMaker::makeFunction(StringRef Name, QualType RetType, ArrayRef< QualType > ArgTypes) {
+  QualType FTy = C.getFunctionType(RetType, ArgTypes, FunctionProtoType::ExtProtoInfo());
+
+
+  FunctionDecl *FD = FunctionDecl::Create(
+    /* ASTContext */ C, 
+    /* DeclContext */ C.getTranslationUnitDecl(), // maybe?
+    /* SourceLocation */ SourceLocation(),
+    /* SourceLocation */ SourceLocation(),
+    /* DeclarationName */ &C.Idents.get(Name),
+    /* QualType */ FTy, 
+    /* TypeSourceInfo */ 0,  // ??
+    /* StorageClass */ SC_Static, // ??
+    /* isInlineSpecified */ false,
+    /* hasWrittenPrototype */  false // ?? 
+  );
+
+  SmallVector<ParmVarDecl *, 8> Params;
+  for(ArrayRef< QualType >::const_iterator i = ArgTypes.begin(), e = ArgTypes.end(); i!=e; ++i )
+  {
+      ParmVarDecl *PV = ParmVarDecl::Create(C, FD,
+                          SourceLocation(), SourceLocation(), /*Id=*/0,
+                          *i, /*TInfo=*/0, SC_None, 0);
+      Params.push_back(PV);
+  }
+
+  FD->setParams(Params);
+
+  return FD;
+}
+
 CallExpr *ASTMaker::makeCall(FunctionDecl *Function, ArrayRef<Expr*> Args) {
   DeclRefExpr *DR = makeDeclRefExpr(Function);
-  ImplicitCastExpr *ICE = ImplicitCastExpr::Create(C, Function->getType(), 
-                            CK_FunctionToPointerDecay, const_cast<Expr*>(DR), 
+  ImplicitCastExpr *ICE = ImplicitCastExpr::Create(C, 
+                            C.getPointerType(Function->getType()),
+                            CK_FunctionToPointerDecay, DR,
                             0, VK_RValue);
 
-  QualType ResultType = Function->getCallResultType(C);
+  QualType ResultType = Function->getCallResultType();
   return new (C) CallExpr(C, ICE, Args, ResultType, VK_RValue, SourceLocation());
 }
 

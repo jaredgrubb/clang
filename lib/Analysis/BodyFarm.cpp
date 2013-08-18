@@ -263,7 +263,6 @@ static BodyFarm::FunctionFarmer getFunctionFarmerForCxxMethod(const CXXMethodDec
 {
   // get the class decl
   const CXXRecordDecl *RD = MD->getParent();
-  std::cout << "########### FunctionFarmer : CXXRecordDecl=" << RD->getIdentifier()->getNameStart() << "##################" << std::endl;
 
   // get the first non-anonymous namespace for this class:
   const NamespaceDecl *ND = getNamespaceForClass(RD);
@@ -273,8 +272,6 @@ static BodyFarm::FunctionFarmer getFunctionFarmerForCxxMethod(const CXXMethodDec
   }
 
   // skip inline namespaces
-  std::cout << "                           : NamespaceDecl=" << ND->getIdentifier()->getNameStart() << "##################" << std::endl;
-
   if (isNamespaceStd(ND)) {
     if (isNamed(RD, "basic_string")) {
       return &BodyFarm::createBodyForStdString;

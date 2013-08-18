@@ -20,11 +20,14 @@
 
 namespace clang {
   class ASTContext;
-  class VarDecl;
+  class ValueDecl;
+  class FunctionDecl;
   class CXXMethodDecl;
   class Expr;
+  class CallExpr;
   class DeclRefExpr;
   class ImplicitCastExpr;
+  class IntegerLiteral;
   class ObjCBoolLiteralExpr;
   class CXXMemberCallExpr;
   class QualType;
@@ -54,7 +57,7 @@ public:
   CompoundStmt *makeCompound(ArrayRef<Stmt*>);
   
   /// Create a new DeclRefExpr for the referenced variable.
-  DeclRefExpr *makeDeclRefExpr(const VarDecl *D);
+  DeclRefExpr *makeDeclRefExpr(const ValueDecl *D);
   
   /// Create a new UnaryOperator representing a dereference.
   UnaryOperator *makeDereference(const Expr *Arg, QualType Ty);
@@ -69,7 +72,7 @@ public:
   ImplicitCastExpr *makeLvalueToRvalue(const Expr *Arg, QualType Ty);
   
   /// Create a null pointer of the given type.
-  ImplicitCastExpr *makeNullPtr(QualType PointerType)
+  ImplicitCastExpr *makeNullPtr(QualType PointerType);
 
   /// Create an integer literal type
   IntegerLiteral *makeInteger(int Val);
@@ -79,6 +82,8 @@ public:
   
   /// Create a Return statement.
   ReturnStmt *makeReturn(const Expr *RetVal);
+
+  FunctionDecl *makeFunction(StringRef Name, QualType RetType, ArrayRef< QualType > ArgTypes);
 
   /// Create a function call expression
   CallExpr *makeCall(FunctionDecl *function, ArrayRef<Expr*> Args);
