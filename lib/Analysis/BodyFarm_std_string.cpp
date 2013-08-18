@@ -67,6 +67,10 @@ namespace {
   };
 }
 
+//===----------------------------------------------------------------------===//
+// Creation functions for all the hook singletons.
+//===----------------------------------------------------------------------===//
+
 FunctionDecl *StdStringBodyFarm::FD_csa_hook_content_set = 0;
 FunctionDecl *StdStringBodyFarm::FD_csa_hook_content_get_size = 0;
 
@@ -96,6 +100,10 @@ FunctionDecl* StdStringBodyFarm::get_FD_csa_hook_content_get_size(ASTContext &C,
   return FD_csa_hook_content_get_size;
 }
 
+//===----------------------------------------------------------------------===//
+// Creation calls out to the various hooks.
+//===----------------------------------------------------------------------===//
+
 CallExpr* StdStringBodyFarm::call_csa_hook_content_get_size(ASTContext &C, ASTMaker &M, CXXThisExpr *This)
 {
   FunctionDecl* FD = get_FD_csa_hook_content_get_size(C, M);
@@ -110,6 +118,10 @@ CallExpr* StdStringBodyFarm::call_csa_hook_content_set(ASTContext &C, ASTMaker &
   Expr* Args[3] = { This, Content, Size };
   return M.makeCall(FD, Args);
 }
+
+//===----------------------------------------------------------------------===//
+// Creation functions for faux ASTs.
+//===----------------------------------------------------------------------===//
 
 template<std::size_t Len>
 static bool isNamed(const NamedDecl *ND, const char (&Str)[Len]) {
@@ -134,6 +146,9 @@ static CXXMethodDecl *getMember(const CXXRecordDecl* RD, QualType SigType, const
   return NULL;
 }
 
+//===----------------------------------------------------------------------===//
+// Creation functions for the fake std::string functions.
+//===----------------------------------------------------------------------===//
 
 Stmt *BodyFarm::createBodyForStdString(ASTContext &C, const FunctionDecl *D)
 {
