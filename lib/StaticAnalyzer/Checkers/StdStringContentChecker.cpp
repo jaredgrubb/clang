@@ -63,7 +63,6 @@ class StdStringContentChecker : public Checker< eval::Call > {
   OwningPtr<BugType> BT_RefCaptureBug;
 
   bool handleContentSet(const CallExpr &CE, CheckerContext &C) const;
-  bool handleContentSetWithCString(const CallExpr &CE, CheckerContext &C) const;
   bool handleContentGetSize(const CallExpr &CE, CheckerContext &C) const;
 
   static void *getTag() { static int tag; return &tag; }
@@ -139,8 +138,6 @@ bool StdStringContentChecker::evalCall(const CallExpr *CE,
 
   if (FDName.equals("_csa_hook_content_set"))
     return handleContentSet(*CE, C);
-  else if (FDName.equals("_csa_hook_content_set_with_string"))
-    return handleContentSetWithCString(*CE, C);
   else if (FDName.equals("_csa_hook_content_get_size"))
     return handleContentGetSize(*CE, C);
 
