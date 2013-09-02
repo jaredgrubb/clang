@@ -131,6 +131,9 @@ public:
                                         const Expr *Ex,
                                         const MemRegion *MR,
                                         bool hypothetical);
+  static SVal getCStringLengthForStringLiteral(CheckerContext &C,
+                                               const StringLiteral *S,
+                                               unsigned StartIndex = 0);
   SVal getCStringLength(CheckerContext &C,
                         ProgramStateRef &state,
                         const Expr *Ex,
@@ -657,6 +660,29 @@ ProgramStateRef CStringChecker::setCStringLength(ProgramStateRef state,
   return state->set<CStringLength>(MR, strLength);
 }
 
+SVal CStringChecker::getCStringLengthForStringLiteral(CheckerContext &C,
+                                                      const StringLiteral *S,
+                                                      unsigned StartIndex) {
+  // Dont use "getByteLength()" since "getCodePoint" is only valid up to
+  // "getLength()" characters. Note that these lengths are different only
+  // if char-width is not 1, but that shouldnt be the case in the "strlen"
+  // contexts that we are emulating. Maybe we should assert that?
+  unsigned Length = S->getLength();
+  
+  // Guard against embedded nul characters
+  for(unsigned i = StartIndex; i < Length; ++i) {
+    uint32_t ch = S->getCodeUnit(i);
+    if (!ch) {
+      Length = i;
+      break;
+    }
+  }
+
+  SValBuilder &SvalBuilder = C.getSValBuilder();
+  QualType SizeTy = svalBuilder.getContext().getSizeType();
+  return SvalBuilder.makeIntVal(Length-StartIndex, SizeTy);
+}
+
 SVal CStringChecker::getCStringLengthForRegion(CheckerContext &C,
                                                ProgramStateRef &state,
                                                const Expr *Ex,
@@ -740,12 +766,8 @@ SVal CStringChecker::getCStringLength(CheckerContext &C, ProgramStateRef &state,
 
   switch (MR->getKind()) {
   case MemRegion::StringRegionKind: {
-    // Modifying the contents of string regions is undefined [C99 6.4.5p6],
-    // so we can assume that the byte length is the correct C string length.
-    SValBuilder &svalBuilder = C.getSValBuilder();
-    QualType sizeTy = svalBuilder.getContext().getSizeType();
     const StringLiteral *strLit = cast<StringRegion>(MR)->getStringLiteral();
-    return svalBuilder.makeIntVal(strLit->getByteLength(), sizeTy);
+    return getCStringLengthForStringLiteral(C, strLit);
   }
   case MemRegion::SymbolicRegionKind:
   case MemRegion::AllocaRegionKind:
@@ -756,10 +778,25 @@ SVal CStringChecker::getCStringLength(CheckerContext &C, ProgramStateRef &state,
   case MemRegion::CompoundLiteralRegionKind:
     // FIXME: Can we track this? Is it necessary?
     return UnknownVal();
-  case MemRegion::ElementRegionKind:
-    // FIXME: How can we handle this? It's not good enough to subtract the
-    // offset from the base string length; consider "123\x00567" and &a[5].
+  case MemRegion::ElementRegionKind: {
+    RegionRawOffset regionOffset = cast<ElementRegion>(MR)->getAsArrayOffset();
+
+    // For now, can only index into a string literal region:
+    const MemRegion *SuperRegion = regionOffset.getRegion();
+    if (!SuperRegion) {
+      // no information about super region, so just fall through and return unknown
+    } else if (const StringRegion *SR = dyn_cast<StringRegion>(SuperRegion)) {
+      // find the length of the c-string that starts at the given offset
+      CharUnits StartIndex = regionOffset.getOffset();
+      if (!StartIndex.isNegative()) {
+        return getCStringLengthForStringLiteral(C, SR->getStringLiteral(), StartIndex.getQuantity());        
+      } else {
+        // BUG! you cant index negatively into a string literal!
+      }
+    }
+    
     return UnknownVal();
+  }
   default:
     // Other regions (mostly non-data) can't have a reliable C string length.
     // In this case, an error is emitted and UndefinedVal is returned.
