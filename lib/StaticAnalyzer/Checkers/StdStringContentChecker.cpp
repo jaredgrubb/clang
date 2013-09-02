@@ -81,14 +81,12 @@ REGISTER_MAP_WITH_PROGRAMSTATE(StringContentMap, const MemRegion *, StringState)
 ////////// The following are stolen from CStringChecker. That's not good.
 ////////// We need to figure out how to share these functions.
 
-// copied from CStringChecker::getCStringLiteral
-static const StringLiteral *getCStringLiteral(CheckerContext &C,
-  const Expr *expr, SVal val) 
+SVal refineSizeIfStringLiteral(CheckerContext &C, SVal Data, SVal CurSize)
 {
   // Get the memory region pointed to by the val.
-  const MemRegion *bufRegion = val.getAsRegion();
+  const MemRegion *bufRegion = Data.getAsRegion();
   if (!bufRegion)
-    return NULL; 
+    return CurSize; 
 
   // Strip casts off the memory region.
   bufRegion = bufRegion->StripCasts();
@@ -96,14 +94,14 @@ static const StringLiteral *getCStringLiteral(CheckerContext &C,
   // Cast the memory region to a string region.
   const StringRegion *strRegion= dyn_cast<StringRegion>(bufRegion);
   if (!strRegion)
-    return NULL; 
+    return CurSize;
 
-  // Return the actual string in the string region.
-  return strRegion->getStringLiteral();
+  // get the real length, without the null byte
+  SValBuilder& svalBuilder = C.getSValBuilder();
+  unsigned length = strRegion->getStringLiteral()->getLength();
+  return svalBuilder.makeIntVal(length,
+                                svalBuilder.getArrayIndexType());
 }
-
-
-
 
 
 StdStringContentChecker::StdStringContentChecker() 
@@ -161,6 +159,12 @@ bool StdStringContentChecker::handleContentSet(const CallExpr &CE,
   SVal Data = State->getSVal(CE.getArg(1), LCtx);
   SVal Size = State->getSVal(CE.getArg(2), LCtx);
 
+  // If the size is unknown, but we have a string literal, we know the size
+  if (Size.isUnknownOrUndef()) {
+    llvm::outs() << "    -- maybe refining the size:";
+    Size.dump();
+    Size = refineSizeIfStringLiteral(C, Data, Size);
+  }
 
   llvm::outs().changeColor(llvm::raw_ostream::YELLOW);
   This.dump();
