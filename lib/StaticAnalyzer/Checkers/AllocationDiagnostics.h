@@ -19,7 +19,7 @@
 namespace clang { namespace ento {
 
 /// \brief Returns true if leak diagnostics should directly reference
-/// the allocatin site (where possible).
+/// the allocation site (where possible).
 ///
 /// The default is false.
 ///

@@ -192,6 +192,11 @@ public:
                       const Stmt *First,
                       const Stmt *Second) const;
 
+  void emitOutOfBoundsBug(CheckerContext &C,
+                          ProgramStateRef state,
+                          const Stmt *S,
+                          StringRef message) const;
+
   ProgramStateRef checkAdditionOverflow(CheckerContext &C,
                                             ProgramStateRef state,
                                             NonLoc left,
@@ -261,6 +266,33 @@ ProgramStateRef CStringChecker::checkNonNull(CheckerContext &C,
   return stateNonNull;
 }
 
+void CStringChecker::emitOutOfBoundsBug(CheckerContext &C,
+                                        ProgramStateRef State,
+                                        const Stmt *S,
+                                        StringRef message) const
+{
+    ExplodedNode *N = C.generateSink(State);
+    if (!N)
+      return;
+
+    if (!BT_Bounds) {
+      BT_Bounds.reset(new BuiltinBug(
+          Filter.CheckNameCStringOutOfBounds, "Out-of-bound array access",
+          "Byte string function accesses out-of-bound array element"));
+    }
+    BuiltinBug *BT = static_cast<BuiltinBug*>(BT_Bounds.get());
+
+    // Generate a report for this bug.
+    BugReport *report = new BugReport(*BT, message, N);
+
+    // FIXME: It would be nice to eventually make this diagnostic more clear,
+    // e.g., by referencing the original declaration or by saying *why* this
+    // reference is outside the range.
+
+    report->addRange(S->getSourceRange());
+    C.emitReport(report);
+}
+
 // FIXME: This was originally copied from ArrayBoundChecker.cpp. Refactor?
 ProgramStateRef CStringChecker::CheckLocation(CheckerContext &C,
                                              ProgramStateRef state,
@@ -295,21 +327,8 @@ ProgramStateRef CStringChecker::CheckLocation(CheckerContext &C,
   ProgramStateRef StInBound = state->assumeInBound(Idx, Size, true);
   ProgramStateRef StOutBound = state->assumeInBound(Idx, Size, false);
   if (StOutBound && !StInBound) {
-    ExplodedNode *N = C.generateSink(StOutBound);
-    if (!N)
-      return nullptr;
-
-    if (!BT_Bounds) {
-      BT_Bounds.reset(new BuiltinBug(
-          Filter.CheckNameCStringOutOfBounds, "Out-of-bound array access",
-          "Byte string function accesses out-of-bound array element"));
-    }
-    BuiltinBug *BT = static_cast<BuiltinBug*>(BT_Bounds.get());
-
-    // Generate a report for this bug.
-    BugReport *report;
     if (warningMsg) {
-      report = new BugReport(*BT, warningMsg, N);
+      emitOutOfBoundsBug(C, StOutBound, S, warningMsg);
     } else {
       assert(CurrentFunctionDescription);
       assert(CurrentFunctionDescription[0] != '\0');
@@ -319,15 +338,9 @@ ProgramStateRef CStringChecker::CheckLocation(CheckerContext &C,
       os << toUppercase(CurrentFunctionDescription[0])
          << &CurrentFunctionDescription[1]
          << " accesses out-of-bound array element";
-      report = new BugReport(*BT, os.str(), N);      
+      emitOutOfBoundsBug(C, StOutBound, S, os.str());
     }
 
-    // FIXME: It would be nice to eventually make this diagnostic more clear,
-    // e.g., by referencing the original declaration or by saying *why* this
-    // reference is outside the range.
-
-    report->addRange(S->getSourceRange());
-    C.emitReport(report);
     return nullptr;
   }
   
@@ -662,25 +675,25 @@ ProgramStateRef CStringChecker::setCStringLength(ProgramStateRef state,
 
 SVal CStringChecker::getCStringLengthForStringLiteral(CheckerContext &C,
                                                       const StringLiteral *S,
-                                                      unsigned StartIndex) {
+                                                      unsigned startIndex) {
   // Dont use "getByteLength()" since "getCodePoint" is only valid up to
   // "getLength()" characters. Note that these lengths are different only
   // if char-width is not 1, but that shouldnt be the case in the "strlen"
   // contexts that we are emulating. Maybe we should assert that?
-  unsigned Length = S->getLength();
+  unsigned length = S->getLength();
   
   // Guard against embedded nul characters
-  for(unsigned i = StartIndex; i < Length; ++i) {
+  for(unsigned i = startIndex; i < length; ++i) {
     uint32_t ch = S->getCodeUnit(i);
     if (!ch) {
-      Length = i;
+      length = i;
       break;
     }
   }
 
-  SValBuilder &SvalBuilder = C.getSValBuilder();
-  QualType SizeTy = svalBuilder.getContext().getSizeType();
-  return SvalBuilder.makeIntVal(Length-StartIndex, SizeTy);
+  SValBuilder &svalBuilder = C.getSValBuilder();
+  QualType sizeTy = svalBuilder.getContext().getSizeType();
+  return svalBuilder.makeIntVal(length-startIndex, sizeTy);
 }
 
 SVal CStringChecker::getCStringLengthForRegion(CheckerContext &C,
@@ -791,7 +804,15 @@ SVal CStringChecker::getCStringLength(CheckerContext &C, ProgramStateRef &state,
       if (!StartIndex.isNegative()) {
         return getCStringLengthForStringLiteral(C, SR->getStringLiteral(), StartIndex.getQuantity());        
       } else {
-        // BUG! you cant index negatively into a string literal!
+        SmallString<120> buf;
+        llvm::raw_svector_ostream os(buf);
+
+        os << "Array index '"
+           << StartIndex.getQuantity()
+           << "' is a negative index into a string literal";
+
+        emitOutOfBoundsBug(C, state, Ex, os.str());
+        return UndefinedVal();
       }
     }
     
