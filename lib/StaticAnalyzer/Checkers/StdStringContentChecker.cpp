@@ -84,7 +84,7 @@ REGISTER_MAP_WITH_PROGRAMSTATE(StringContentMap, const MemRegion *, StringState)
 
 // copied from CStringChecker::getCStringLiteral
 static const StringLiteral *getCStringLiteral(CheckerContext &C,
-  const Expr *expr, SVal val) const 
+  const Expr *expr, SVal val) 
 {
   // Get the memory region pointed to by the val.
   const MemRegion *bufRegion = val.getAsRegion();
@@ -178,51 +178,6 @@ bool StdStringContentChecker::handleContentSet(const CallExpr &CE,
   if (!StringObject) 
     return true;  // the hook did its best, so we may as still swallow this call
   StringObject = StringObject->StripCasts();
-
-  llvm::outs().changeColor(llvm::raw_ostream::RED)
-  << "  -- recorded!";
-  llvm::outs().resetColor();
-  llvm::outs() << "\n";
-
-  State = State->set<StringContentMap>(StringObject, StringState::create(Data, Size));
-
-  C.addTransition(State);
-  return true;
-}
-
-bool StdStringContentChecker::handleContentSetWithCString(const CallExpr &CE, 
-                                               CheckerContext &C) const
-{
-  if (CE.getNumArgs() != 2) 
-    return false;
-
-  llvm::outs().changeColor(llvm::raw_ostream::BLUE) 
-  << " -------- StdStringContentChecker::handleContentSetWithCString\n";
-  llvm::outs().resetColor();
-
-  const LocationContext *LCtx = C.getLocationContext();
-  ProgramStateRef State = C.getState();
-
-  SVal This = State->getSVal(CE.getArg(0), LCtx);
-  SVal CStr = State->getSVal(CE.getArg(1), LCtx);
-
-  llvm::outs().changeColor(llvm::raw_ostream::YELLOW);
-  This.dump();
-  llvm::outs() << " :: ";
-  CStr.dump();
-  llvm::outs().resetColor();
-  llvm::outs() << "\n";
-
-  const MemRegion *StringObject = This.getAsRegion();
-  if (!StringObject) 
-    return true;  // the hook did its best, so we may as still swallow this call
-  StringObject = StringObject->StripCasts();
-
-  SVal CStrSize = getCStringLength(CStr);
-
-  // if the c-string size is undefined, just give up
-  if (CStrSize.isUndef())
-    return true;
 
   llvm::outs().changeColor(llvm::raw_ostream::RED)
   << "  -- recorded!";
