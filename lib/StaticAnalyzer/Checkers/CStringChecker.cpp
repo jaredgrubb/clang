@@ -770,8 +770,19 @@ SVal CStringChecker::getCStringLength(CheckerContext &C, ProgramStateRef &state,
   // its length. For anything we can't figure out, just return UnknownVal.
   MR = MR->StripCasts();
 
+  llvm::outs().changeColor(llvm::raw_ostream::GREEN) 
+  << "    .. CStringChecker::getCStringLength\n";
+  llvm::outs().changeColor(llvm::raw_ostream::RED);
+  Buf.dump();
+  llvm::outs().resetColor();
+  MR->dump();
+  llvm::outs() << "\n";
+
   switch (MR->getKind()) {
   case MemRegion::StringRegionKind: {
+    llvm::outs().changeColor(llvm::raw_ostream::YELLOW) 
+    << "       .. MemRegion::StringRegionKind\n";
+    llvm::outs().resetColor();
     const StringLiteral *strLit = cast<StringRegion>(MR)->getStringLiteral();
     return getCStringLengthForStringLiteral(C, strLit);
   }
@@ -780,11 +791,21 @@ SVal CStringChecker::getCStringLength(CheckerContext &C, ProgramStateRef &state,
   case MemRegion::VarRegionKind:
   case MemRegion::FieldRegionKind:
   case MemRegion::ObjCIvarRegionKind:
+    llvm::outs().changeColor(llvm::raw_ostream::YELLOW) 
+    << "       .. MemRegion::{...}RegionKind\n";
+    llvm::outs().resetColor();
     return getCStringLengthForRegion(C, state, Ex, MR, hypothetical);
   case MemRegion::CompoundLiteralRegionKind:
+    llvm::outs().changeColor(llvm::raw_ostream::YELLOW) 
+    << "       .. MemRegion::CompoundLiteralRegionKind\n";
+    llvm::outs().resetColor();
     // FIXME: Can we track this? Is it necessary?
     return UnknownVal();
   case MemRegion::ElementRegionKind: {
+    llvm::outs().changeColor(llvm::raw_ostream::YELLOW) 
+    << "       .. MemRegion::ElementRegionKind\n";
+    llvm::outs().resetColor();
+
     RegionRawOffset regionOffset = cast<ElementRegion>(MR)->getAsArrayOffset();
 
     // For now, can only index into a string literal region:
@@ -812,6 +833,9 @@ SVal CStringChecker::getCStringLength(CheckerContext &C, ProgramStateRef &state,
     return UnknownVal();
   }
   default:
+    llvm::outs().changeColor(llvm::raw_ostream::YELLOW) 
+    << "       .. default\n";
+    llvm::outs().resetColor();
     // Other regions (mostly non-data) can't have a reliable C string length.
     // In this case, an error is emitted and UndefinedVal is returned.
     // The caller should always be prepared to handle this case.
@@ -1181,6 +1205,11 @@ void CStringChecker::evalstrLengthCommon(CheckerContext &C, const CallExpr *CE,
   CurrentFunctionDescription = "string length function";
   ProgramStateRef state = C.getState();
   const LocationContext *LCtx = C.getLocationContext();
+
+  llvm::outs().changeColor(llvm::raw_ostream::GREEN) 
+  << "...... CStringChecker::evalstrLengthCommon\n";
+  llvm::outs().resetColor();
+
 
   if (IsStrnlen) {
     const Expr *maxlenExpr = CE->getArg(1);
