@@ -45,16 +45,10 @@ void strlen_constant0() {
 void strlen_constant1() {
   const char *a = "123";
   clang_analyzer_eval(strlen(a) == 3); // expected-warning{{TRUE}}
-
-  // check that 'strlen' doesnt itself invalidate the region
-  clang_analyzer_eval(strlen(a) == 3); // expected-warning{{TRUE}}
 }
 
 void strlen_constant2(char x) {
   char b[] = "zyx";
-  clang_analyzer_eval(strlen(b) == 3); // expected-warning{{TRUE}}
-
-  // check that 'strlen' doesnt itself invalidate the region
   clang_analyzer_eval(strlen(b) == 3); // expected-warning{{TRUE}}
 
   b[0] = x;
@@ -75,11 +69,18 @@ void strlen_constant_with_embedded_null2() {
   const char *a = "123\00045";
   clang_analyzer_eval(strlen(a) == 3); // expected-warning{{TRUE}}
   clang_analyzer_eval(strlen(a+1) == 2); // expected-warning{{TRUE}}
+  clang_analyzer_eval(strlen(a+3) == 0); // expected-warning{{TRUE}}
   clang_analyzer_eval(strlen(a+4) == 2); // expected-warning{{TRUE}}
+  clang_analyzer_eval(strlen(a+6) == 0); // expected-warning{{TRUE}}
 }
 
 size_t strlen_null() {
   return strlen(0); // expected-warning{{Null pointer argument in call to string length function}}
+}
+
+size_t strlen_stringliteral_neg_index() {
+  const char *a = "123";
+  return strlen(a-1); // expected-warning{{Array index '-1' is a negative index into a string literal}}
 }
 
 size_t strlen_fn() {
