@@ -1,7 +1,7 @@
-// RUN: %clang_cc1 -fblocks -std=c++98 -analyze -analyzer-checker=core.NullDereference,alpha.cplusplus.StdStringContent,debug.ExprInspection -verify %s
-// RUN: %clang_cc1 -fblocks -std=c++11 -analyze -analyzer-checker=core.NullDereference,alpha.cplusplus.StdStringContent,debug.ExprInspection -verify %s
-// RUN: %clang_cc1 -fblocks -std=c++11 -stdlib=libc++ -analyze -analyzer-checker=core.NullDereference,alpha.cplusplus.StdStringContent,debug.ExprInspection -verify %s
-// RUN: %clang_cc1 -fblocks -std=c++1y -analyze -analyzer-checker=core.NullDereference,alpha.cplusplus.StdStringContent,debug.ExprInspection -verify %s
+// RUN: %clang_cc1 -fblocks -std=c++98 -analyze -analyzer-checker=core.NullDereference,alpha.cplusplus.StdStringContent,debug.ExprInspection,unix.cstring.NullArg -verify %s
+// RUN: %clang_cc1 -fblocks -std=c++11 -analyze -analyzer-checker=core.NullDereference,alpha.cplusplus.StdStringContent,debug.ExprInspection,unix.cstring.NullArg -verify %s
+// RUN: %clang_cc1 -fblocks -std=c++11 -stdlib=libc++ -analyze -analyzer-checker=core.NullDereference,alpha.cplusplus.StdStringContent,debug.ExprInspection,unix.cstring.NullArg -verify %s
+// RUN: %clang_cc1 -fblocks -std=c++1y -analyze -analyzer-checker=core.NullDereference,alpha.cplusplus.StdStringContent,debug.ExprInspection,unix.cstring.NullArg -verify %s
 
 // going away soon:
 // expected-no-diagnostics
