@@ -102,59 +102,6 @@ static const StringLiteral *getCStringLiteral(CheckerContext &C,
   // Return the actual string in the string region.
   return strRegion->getStringLiteral();
 }
-static SVal getCStringLength(CheckerContext &C, ProgramStateRef &state,
-                                      const Expr *Ex, SVal Buf,
-                                      bool hypothetical) const {
-  const MemRegion *MR = Buf.getAsRegion();
-  if (!MR) {
-    // If we can't get a region, see if it's something we /know/ isn't a
-    // C string. In the context of locations, the only time we can issue such
-    // a warning is for labels.
-
-      // [[ JG: skipped for brevity ]]
-
-    // If it's not a region and not a label, give up.
-    return UnknownVal();
-  }
-
-  // If we have a region, strip casts from it and see if we can figure out
-  // its length. For anything we can't figure out, just return UnknownVal.
-  MR = MR->StripCasts();
-
-  switch (MR->getKind()) {
-  case MemRegion::StringRegionKind: {
-    // Modifying the contents of string regions is undefined [C99 6.4.5p6],
-    // so we can assume that the byte length is the correct C string length.
-    SValBuilder &svalBuilder = C.getSValBuilder();
-    QualType sizeTy = svalBuilder.getContext().getSizeType();
-    const StringLiteral *strLit = cast<StringRegion>(MR)->getStringLiteral();
-    return svalBuilder.makeIntVal(strLit->getByteLength(), sizeTy);
-  }
-  case MemRegion::SymbolicRegionKind:
-  case MemRegion::AllocaRegionKind:
-  case MemRegion::VarRegionKind:
-  case MemRegion::FieldRegionKind:
-  case MemRegion::ObjCIvarRegionKind: {
-    SValBuilder &svalBuilder = C.getSValBuilder();
-    QualType sizeTy = svalBuilder.getContext().getSizeType();
-    return svalBuilder.getMetadataSymbolVal(StdStringContentChecker::getTag(),
-                                            MR, Ex, sizeTy,
-                                            C.blockCount());
-  }
-  case MemRegion::CompoundLiteralRegionKind:
-    // FIXME: Can we track this? Is it necessary?
-    return UnknownVal();
-  case MemRegion::ElementRegionKind:
-    // FIXME: How can we handle this? It's not good enough to subtract the
-    // offset from the base string length; consider "123\x00567" and &a[5].
-    return UnknownVal();
-  default:
-
-      // [[ JG: skipped for brevity ]]
-
-    return UndefinedVal();
-  }
-}
 
 
 

@@ -1,7 +1,7 @@
-// RUN: %clang_cc1 -fblocks -std=c++98 -analyze -analyzer-checker=core.NullDereference,alpha.cplusplus.StdStringContent -verify %s
-// RUN: %clang_cc1 -fblocks -std=c++11 -analyze -analyzer-checker=core.NullDereference,alpha.cplusplus.StdStringContent -verify %s
-// RUN: %clang_cc1 -fblocks -std=c++11 -stdlib=libc++ -analyze -analyzer-checker=core.NullDereference,alpha.cplusplus.StdStringContent -verify %s
-// RUN: %clang_cc1 -fblocks -std=c++1y -analyze -analyzer-checker=core.NullDereference,alpha.cplusplus.StdStringContent -verify %s
+// RUN: %clang_cc1 -fblocks -std=c++98 -analyze -analyzer-checker=core.NullDereference,alpha.cplusplus.StdStringContent,debug.ExprInspection -verify %s
+// RUN: %clang_cc1 -fblocks -std=c++11 -analyze -analyzer-checker=core.NullDereference,alpha.cplusplus.StdStringContent,debug.ExprInspection -verify %s
+// RUN: %clang_cc1 -fblocks -std=c++11 -stdlib=libc++ -analyze -analyzer-checker=core.NullDereference,alpha.cplusplus.StdStringContent,debug.ExprInspection -verify %s
+// RUN: %clang_cc1 -fblocks -std=c++1y -analyze -analyzer-checker=core.NullDereference,alpha.cplusplus.StdStringContent,debug.ExprInspection -verify %s
 
 // going away soon:
 // expected-no-diagnostics
@@ -12,12 +12,15 @@
 //   TODO: There should be a "expect-unreachable" annotation for unit tests!
 static int * const NULL_PTR = 0;
 
+void clang_analyzer_crash(); // debug.ExprInspection will crash if we hit branches that we shouldnt be able to reach
+
 std::string CreateString();  // dummy function to generate unknown string
 
 void check_ctor_default() {
   std::string str;
 
   if (!str.empty()) {
+    clang_analyzer_crash();
     *NULL_PTR = 42;  // not reachable
   }
 }

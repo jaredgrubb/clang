@@ -58,19 +58,19 @@ namespace {
   protected:
     static FunctionDecl* get_FD_csa_hook_ptr_require_nonnull(ASTContext &C, ASTMaker &M);
     static FunctionDecl* get_FD_csa_hook_content_set(ASTContext &C, ASTMaker &M);
-    static FunctionDecl* get_FD_csa_hook_content_set_with_cstring(ASTContext &C, ASTMaker &M);
     static FunctionDecl* get_FD_csa_hook_content_get_size(ASTContext &C, ASTMaker &M);
+    static FunctionDecl* get_FD_strlen(ASTContext &C, ASTMaker &M);
 
     static CallExpr* call_csa_hook_ptr_require_nonnull(ASTContext &C, ASTMaker &M, Expr *Pointer);
     static CallExpr* call_csa_hook_content_set(ASTContext &C, ASTMaker &M, CXXThisExpr *This, Expr *Content, Expr *Size);
-    static CallExpr* call_csa_hook_content_set_with_cstring(ASTContext &C, ASTMaker &M, CXXThisExpr *This, Expr *Pointer);
     static CallExpr* call_csa_hook_content_get_size(ASTContext &C, ASTMaker &M, CXXThisExpr *This);
+    static CallExpr* call_strlen(ASTContext &C, ASTMaker &M, Expr *Pointer);
 
   protected: // FunctionDecl hooks:
     static FunctionDecl *FD_csa_hook_ptr_require_nonnull;
     static FunctionDecl *FD_csa_hook_content_set;
-    static FunctionDecl *FD_csa_hook_content_set_with_cstring;
     static FunctionDecl *FD_csa_hook_content_get_size;
+    static FunctionDecl *FD_strlen;
   };
 }
 
@@ -80,8 +80,8 @@ namespace {
 
 FunctionDecl *StdStringBodyFarm::FD_csa_hook_ptr_require_nonnull = 0;
 FunctionDecl *StdStringBodyFarm::FD_csa_hook_content_set = 0;
-FunctionDecl *StdStringBodyFarm::FD_csa_hook_content_set_with_cstring = 0;
 FunctionDecl *StdStringBodyFarm::FD_csa_hook_content_get_size = 0;
+FunctionDecl *StdStringBodyFarm::FD_strlen = 0;
 
 FunctionDecl* StdStringBodyFarm::get_FD_csa_hook_ptr_require_nonnull(ASTContext &C, ASTMaker &M)
 {
@@ -109,19 +109,6 @@ FunctionDecl* StdStringBodyFarm::get_FD_csa_hook_content_set(ASTContext &C, ASTM
   return FD_csa_hook_content_set;
 }
 
-FunctionDecl* StdStringBodyFarm::get_FD_csa_hook_content_set_with_cstring(ASTContext &C, ASTMaker &M)
-{
-  if (!FD_csa_hook_content_set_with_cstring) {
-    QualType ArgTypes[2] = {
-      C.getPointerType(C.getConstType(C.VoidTy)),   // const void*
-      C.getPointerType(C.getConstType(C.CharTy))    // const char*
-    };
-
-    FD_csa_hook_content_set_with_cstring = M.makeFunction("_csa_hook_content_set_with_cstring", C.VoidTy, ArgTypes);
-  }
-  return FD_csa_hook_content_set_with_cstring;
-}
-
 FunctionDecl* StdStringBodyFarm::get_FD_csa_hook_content_get_size(ASTContext &C, ASTMaker &M)
 {
   if (!FD_csa_hook_content_get_size) {
@@ -132,6 +119,19 @@ FunctionDecl* StdStringBodyFarm::get_FD_csa_hook_content_get_size(ASTContext &C,
     FD_csa_hook_content_get_size = M.makeFunction("_csa_hook_content_get_size", C.getSizeType(), ArgTypes);
   }
   return FD_csa_hook_content_get_size;
+}
+
+FunctionDecl* StdStringBodyFarm::get_FD_strlen(ASTContext &C, ASTMaker &M)
+{
+  if (!FD_strlen) {
+    // XX: probably should try to look for the real one, but this works for now:
+    QualType ArgTypes[1] = {
+      C.getPointerType(C.getConstType(C.CharTy))  // const char*
+    };
+
+    FD_strlen = M.makeFunction("strlen", C.getSizeType(), ArgTypes);
+  }
+  return FD_strlen;
 }
 
 //===----------------------------------------------------------------------===//
@@ -153,18 +153,17 @@ CallExpr* StdStringBodyFarm::call_csa_hook_content_set(ASTContext &C, ASTMaker &
   return M.makeCall(FD, Args);
 }
 
-CallExpr* StdStringBodyFarm::call_csa_hook_content_set_with_cstring(ASTContext &C, ASTMaker &M, 
-  CXXThisExpr *This, Expr *Pointer)
-{
-  FunctionDecl* FD = get_FD_csa_hook_content_set_with_cstring(C, M);
-  Expr* Args[2] = { This, Pointer };
-  return M.makeCall(FD, Args);
-}
-
 CallExpr* StdStringBodyFarm::call_csa_hook_content_get_size(ASTContext &C, ASTMaker &M, CXXThisExpr *This)
 {
   FunctionDecl* FD = get_FD_csa_hook_content_get_size(C, M);
   Expr* Args[1] = { This };
+  return M.makeCall(FD, Args);
+}
+
+CallExpr* StdStringBodyFarm::call_strlen(ASTContext &C, ASTMaker &M, Expr *Pointer)
+{
+  FunctionDecl* FD = get_FD_strlen(C, M);
+  Expr* Args[1] = { Pointer };
   return M.makeCall(FD, Args);
 }
 
@@ -374,7 +373,7 @@ Stmt *StdStringBodyFarm::create_ctor_char_ptr(ASTContext &C, const CXXConstructo
   // basic_string::basic_string(const char* str) const {
   // {
   //     _csa_hook_ptr_require_nonnull(str);   // (1)
-  //     _csa_hook_content_set_with_cstring(this, str);  // (2)
+  //     _csa_hook_content_set(this, str, strlen(str));  // (2)
   // }
   // 
 
@@ -392,7 +391,8 @@ Stmt *StdStringBodyFarm::create_ctor_char_ptr(ASTContext &C, const CXXConstructo
   Stmts[0] = call_csa_hook_ptr_require_nonnull(C, M, ICE0);
 
   // (2)
-  Stmts[1] = call_csa_hook_content_set_with_cstring(C, M, This, ICE0);
+  CallExpr *Strlen = call_strlen(C, M, ICE0);
+  Stmts[1] = call_csa_hook_content_set(C, M, This, ICE0, Strlen);
 
   return M.makeCompound(Stmts);
 }
