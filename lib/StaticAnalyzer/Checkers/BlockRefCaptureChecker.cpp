@@ -33,13 +33,15 @@ class BlockRefCaptureChecker : public Checker< check::PreCall > {
 
   OwningPtr<BugType> BT_RefCaptureBug;
 
+  /// One-time setup for the II's used by this checker.
   void initIdentifierInfo(ASTContext &Ctx) const;
 
+  /// Examine a block's captured variables for anything that looks suspect.
   void checkBlockForBadCapture(const BlockExpr *Block, CheckerContext &C) const;
 
-  void reportRefCaptureBug(SymbolRef FileDescSym,
-                         const CallEvent &Call,
-                         CheckerContext &C) const;
+  /// Generate a bug for the given variable.
+  void reportRefCaptureBug(const VarDecl *VD,
+                           CheckerContext &C) const;
 public:
   BlockRefCaptureChecker();
 
@@ -64,7 +66,9 @@ void BlockRefCaptureChecker::checkPreCall(const CallEvent &Call,
 
   initIdentifierInfo(C.getASTContext());
 
-  // Check API that process blocks asynchronously:
+  // Check API that process blocks asynchronously.
+  // For now, that's only dispatch_async, but in the future it would be
+  // good to generalize that (eg, std::async+lambdas, or dispatch sources)
 
   if (Call.getCalleeIdentifier() == II_dispatch_async) {
     if (Call.getNumArgs() != 2)
@@ -85,44 +89,45 @@ void BlockRefCaptureChecker::checkPreCall(const CallEvent &Call,
 }
 
 // Figure out if a VarDecl is a problem, and return the problem VD if so
-// Return NULL if the VarDecl is no issue
+// Return NULL if the VarDecl is no issue.
 static const VarDecl *sFindProblemVarDecl(const VarDecl *VD)
 {
-  if (!VD) {
+  if (!VD)
     return NULL;
-  }
 
-  // if we hit a __block type or a non-local variable, we're good
-  if (VD->getAttr<BlocksAttr>() || !VD->hasLocalStorage()) {
+  // Only local variables can cause a problem. Statics/globals are fine.
+  if (!VD->hasLocalStorage())
     return NULL;
-  }
 
-  // if we hit a non-ref type then we have a problem (because it has local storage)
-  if (!VD->getType()->isReferenceType()) {
+  // Local '__block' variables are acceptable too.
+  if (VD->getAttr<BlocksAttr>() || !VD->hasLocalStorage())
+    return NULL;
+
+  // Local variables of non-reference type are the main problem we are searching for.
+  if (!VD->getType()->isReferenceType())
     return VD;
-  }
 
-  // In general, we cant know if a passed-in paramter is local or global, but
-  // we take the pessimistic view that it probably is a temporary and report it
+  // In general, we dont know if a passed-in parameter references a local or global, 
+  // but we take the pessimistic view that it probably is pointing to some stack var
+  // and will report it.
   if (dyn_cast<ParmVarDecl>(VD)) {
     return VD;
   }
 
-  // Use the expression that the reference points to and figure out if it's a problem:
+  // VD is a local reference to some expression.
   Expr const* Init = VD->getInit();
-  if (!Init) {
+  if (!Init)
     return NULL;
-  }
 
-  // ignore any implicit casts (eg, upcasting) that dont affect our analysis
+  // Strip any implicit casts (eg, upcasting), since these do not affect capture analysis.
   Init = Init->IgnoreImpCasts();
 
-  // if we have a ref-to-ref, the recurse on its reference value
+  // Reference-to-a-reference: safety depends on the safety of THAT reference.
   if (const DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(Init)) {
     return sFindProblemVarDecl(dyn_cast<VarDecl>(DRE->getDecl()));      
   }
 
-  // reference to temporary expression (eg return value) cant have local storage
+  // Reference to temporary expression (eg return value) cant have local storage.
   if (const MaterializeTemporaryExpr *MTE = dyn_cast<MaterializeTemporaryExpr>(Init)) {
     if (MTE->getStorageDuration()==SD_Automatic) {
       return VD;
@@ -130,29 +135,27 @@ static const VarDecl *sFindProblemVarDecl(const VarDecl *VD)
     return NULL;
   }
 
-  // all other cases are not handled and presumed safe
+  // Any other case is not handled, so we assume it's safe.
   return NULL;
 }
 
 void BlockRefCaptureChecker::checkBlockForBadCapture(const BlockExpr *BE, CheckerContext &C) const {
-  // no captures, no problem.
+  // No block captures is no problem.
   if (!BE->getBlockDecl()->hasCaptures())
     return;
 
-  // otherwise check every variable captured in the block
+  // Iterate over every captured variable and report problems.
   ProgramStateRef state = C.getState();
-  const BlockDataRegion *R =
-    cast<BlockDataRegion>(state->getSVal(BE,
-                                         C.getLocationContext()).getAsRegion());
+  const BlockDataRegion *R = cast<BlockDataRegion>(
+    state->getSVal(BE, C.getLocationContext()).getAsRegion());
 
   BlockDataRegion::referenced_vars_iterator I = R->referenced_vars_begin(),
                                             E = R->referenced_vars_end();
-
   for (; I != E; ++I) {
     const VarRegion *VR = I.getOriginalRegion();
     const VarDecl *VD = VR->getDecl();
 
-    // we only care about reference captures
+    // Skip any non-reference captures.
     if (!VD->getType()->isReferenceType()) {
       continue;
     }
@@ -162,20 +165,26 @@ void BlockRefCaptureChecker::checkBlockForBadCapture(const BlockExpr *BE, Checke
       continue;
     }
 
-    SmallString<128> buf;
-    llvm::raw_svector_ostream os(buf);
-
-    os << "Variable '" << VD->getName() 
-       << "' is captured as a reference-type to a value "
-          "that may not exist when the block runs.";
-
-    PathDiagnosticLocation Loc =  PathDiagnosticLocation::create(
-            VD, C.getSourceManager());
-
-    BugReport *Bug = new BugReport(*BT_RefCaptureBug, os.str(), Loc);
-    Bug->markInteresting(VR);
-    C.emitReport(Bug);
+    reportRefCaptureBug(VD, C);
   }
+}
+
+void BlockRefCaptureChecker::reportRefCaptureBug(
+                         const VarDecl *VD,
+                         CheckerContext &C) const
+{
+  SmallString<128> buf;
+  llvm::raw_svector_ostream os(buf);
+
+  os << "Variable '" << VD->getName() 
+     << "' is captured as a reference to a value "
+        "that may not exist when the block actually runs.";
+
+  PathDiagnosticLocation Loc =  PathDiagnosticLocation::create(
+          VD, C.getSourceManager());
+
+  BugReport *Bug = new BugReport(*BT_RefCaptureBug, os.str(), Loc);
+  C.emitReport(Bug);
 }
 
 void BlockRefCaptureChecker::initIdentifierInfo(ASTContext &Ctx) const {
