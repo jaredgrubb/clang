@@ -49,6 +49,31 @@ public:
   void checkPreCall(const CallEvent &Call, CheckerContext &C) const;
 };
 
+class BlockRefReportVisitor : public BugReporterVisitorImpl<BlockRefReportVisitor> {
+protected:
+  const VarDecl *Var;
+
+  int count;
+  
+public:
+  BlockRefReportVisitor(const VarDecl *Var) : Var(Var), count() {}
+
+  virtual void Profile(llvm::FoldingSetNodeID &ID) const {
+    static int x = 0;
+    ID.AddPointer(&x);
+  }
+
+  virtual PathDiagnosticPiece *VisitNode(const ExplodedNode *N,
+                                         const ExplodedNode *PrevN,
+                                         BugReporterContext &BRC,
+                                         BugReport &BR);
+
+  // virtual PathDiagnosticPiece *getEndPath(BugReporterContext &BRC,
+  //                                         const ExplodedNode *N,
+  //                                         BugReport &BR);
+};
+
+
 } // end anonymous namespace
 
 BlockRefCaptureChecker::BlockRefCaptureChecker() 
@@ -173,6 +198,8 @@ void BlockRefCaptureChecker::reportRefCaptureBug(
                          const VarDecl *VD,
                          CheckerContext &C) const
 {
+  ExplodedNode *N = C.addTransition();
+
   SmallString<128> buf;
   llvm::raw_svector_ostream os(buf);
 
@@ -180,10 +207,12 @@ void BlockRefCaptureChecker::reportRefCaptureBug(
      << "' is captured as a reference to a value "
         "that may not exist when the block actually runs.";
 
-  PathDiagnosticLocation Loc =  PathDiagnosticLocation::create(
-          VD, C.getSourceManager());
+  // PathDiagnosticLocation Loc =  PathDiagnosticLocation::create(
+  //         VD, C.getSourceManager());
 
-  BugReport *Bug = new BugReport(*BT_RefCaptureBug, os.str(), Loc);
+  BugReport *Bug = new BugReport(*BT_RefCaptureBug, os.str(), N);
+  //Bug->addRange(Loc);
+  Bug->addVisitor(new BlockRefReportVisitor(VD));
   C.emitReport(Bug);
 }
 
@@ -195,4 +224,29 @@ void BlockRefCaptureChecker::initIdentifierInfo(ASTContext &Ctx) const {
 
 void ento::registerBlockRefCaptureChecker(CheckerManager &mgr) {
   mgr.registerChecker<BlockRefCaptureChecker>();
+}
+
+
+
+PathDiagnosticPiece *BlockRefReportVisitor::VisitNode(
+                                                      const ExplodedNode *N,
+                                                      const ExplodedNode *PrevN,
+                                                      BugReporterContext &BRC,
+                                                      BugReport &BR) {
+  ProgramStateRef state = N->getState();
+  ProgramStateRef statePrev = PrevN->getState();
+
+  ProgramPoint ProgLoc = N->getLocation();
+
+  llvm::outs().changeColor(llvm::raw_ostream::GREEN) << " ------- " << ++count << " --------\n";
+  llvm::outs().changeColor(llvm::raw_ostream::GREEN) << "       ------- Decl\n";
+  llvm::outs().resetColor();
+  const Decl &D = N->getCodeDecl();
+  D.dump();
+
+  llvm::outs().changeColor(llvm::raw_ostream::GREEN) << "       ------- Progam state\n";
+  llvm::outs().resetColor();
+  state->dump();
+
+  return NULL;
 }
