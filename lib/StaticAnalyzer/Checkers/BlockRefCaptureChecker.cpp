@@ -228,11 +228,25 @@ void ento::registerBlockRefCaptureChecker(CheckerManager &mgr) {
 
 
 
-PathDiagnosticPiece *BlockRefReportVisitor::VisitNode(
-                                                      const ExplodedNode *N,
+PathDiagnosticPiece *BlockRefReportVisitor::VisitNode(const ExplodedNode *N,
                                                       const ExplodedNode *PrevN,
                                                       BugReporterContext &BRC,
-                                                      BugReport &BR) {
+                                                      BugReport &BR) 
+{
+  Optional<PostStmt> P = N->getLocationAs<PostStmt>();
+  if (!P) {
+    llvm::outs().changeColor(llvm::raw_ostream::GREEN) << " ------- " << ++count << " --------\n";
+    llvm::outs().changeColor(llvm::raw_ostream::GREEN) << "     ------- Not a PostStmt\n";
+    return NULL;
+  }
+
+  const DeclStmt *DS = P->getStmtAs<DeclStmt>();
+  if (!DS) {
+    llvm::outs().changeColor(llvm::raw_ostream::GREEN) << " ------- " << ++count << " --------\n";
+    llvm::outs().changeColor(llvm::raw_ostream::GREEN) << "     ------- PostStmt, but not a DeclStmt\n";
+    return false;
+  }
+
   ProgramStateRef state = N->getState();
   ProgramStateRef statePrev = PrevN->getState();
 
