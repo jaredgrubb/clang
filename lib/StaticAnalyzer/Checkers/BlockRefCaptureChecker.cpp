@@ -292,8 +292,11 @@ PathDiagnosticPiece *BlockRefReportVisitor::VisitNode(const ExplodedNode *N,
   llvm::outs().changeColor(llvm::raw_ostream::RED) << "       ------- Returning a diag piece\n";
   // PathDiagnosticLocation Pos(Var, BRC.getSourceManager());
   // return new PathDiagnosticEventPiece(Pos, "This is a nice spot.");
-  PathDiagnosticLocation Pos(ProgLoc, BRC.getSourceManager());
-  return new PathDiagnosticEventPiece(Pos, "This is a nice spot.");
+  PathDiagnosticLocation Pos = PathDiagnosticLocation::create(ProgLoc, BRC.getSourceManager());
+  PathDiagnosticPiece* ret = new PathDiagnosticEventPiece(Pos, "This is a nice spot.");
+  ret->setPrunable(false, true);
+  return ret;
+
   // PathDiagnosticLocation Pos = PathDiagnosticLocation::create(Var->getInit(), BRC.getSourceManager(),
   //                            N->getLocationContext());
   // return new PathDiagnosticEventPiece(Pos, "This is a nice spot.");
