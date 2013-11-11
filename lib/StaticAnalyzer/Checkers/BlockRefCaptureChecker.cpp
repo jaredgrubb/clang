@@ -41,7 +41,7 @@ class BlockRefCaptureChecker : public Checker< check::PreCall > {
 
   /// Generate a bug for the given variable.
   void reportRefCaptureBug(const VarDecl *VD,
-                           SmallVector<VarDecl*, 4> ProblemDeclChain,
+                           SmallVector<VarDecl const*, 4> ProblemDeclChain,
                            CheckerContext &C) const;
 public:
   BlockRefCaptureChecker();
@@ -116,7 +116,7 @@ void BlockRefCaptureChecker::checkPreCall(const CallEvent &Call,
 
 // Figure out if a VarDecl is a problem, and return the problem VD if so
 // Return NULL if the VarDecl is no issue.
-static bool sFindProblemVarDecl(const VarDecl *VD, SmallVector<VarDecl*, 4>& ProblemDeclChain)
+static bool sFindProblemVarDecl(const VarDecl *VD, SmallVector<VarDecl const*, 4>& ProblemDeclChain)
 {
   if (!VD)
     return false;
@@ -190,7 +190,7 @@ void BlockRefCaptureChecker::checkBlockForBadCapture(const BlockExpr *BE, Checke
       continue;
     }
 
-    SmallVector<VarDecl*, 4> ProblemDecl;
+    SmallVector<VarDecl const*, 4> ProblemDecl;
     bool HasProblem = sFindProblemVarDecl(VD, ProblemDecl);
     if (!HasProblem) {
       continue;
@@ -202,7 +202,7 @@ void BlockRefCaptureChecker::checkBlockForBadCapture(const BlockExpr *BE, Checke
 
 void BlockRefCaptureChecker::reportRefCaptureBug(
                          const VarDecl *VD,
-                         SmallVector<VarDecl*, 4> ProblemDeclChain,
+                         SmallVector<VarDecl const*, 4> ProblemDeclChain,
                          CheckerContext &C) const
 {
   ExplodedNode *N = C.addTransition();
@@ -219,7 +219,7 @@ void BlockRefCaptureChecker::reportRefCaptureBug(
 
   BugReport *Bug = new BugReport(*BT_RefCaptureBug, os.str(), N);
   
-  for(SmallVector<VarDecl*, 4>::const_iterator i = ProblemDeclChain.begin(),
+  for(SmallVector<VarDecl const*, 4>::const_iterator i = ProblemDeclChain.begin(),
     e = ProblemDeclChain.end();
     i != e;
     ++i) 
