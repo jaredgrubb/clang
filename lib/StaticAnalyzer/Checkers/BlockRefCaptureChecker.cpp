@@ -190,13 +190,13 @@ void BlockRefCaptureChecker::checkBlockForBadCapture(const BlockExpr *BE, Checke
       continue;
     }
 
-    SmallVector<VarDecl const*, 4> ProblemDecl;
-    bool HasProblem = sFindProblemVarDecl(VD, ProblemDecl);
+    SmallVector<VarDecl const*, 4> ProbDeclChain;
+    bool HasProblem = sFindProblemVarDecl(VD, ProbDeclChain);
     if (!HasProblem) {
       continue;
     }
 
-    reportRefCaptureBug(VD, C);
+    reportRefCaptureBug(VD, ProbDeclChain,  C);
   }
 }
 
