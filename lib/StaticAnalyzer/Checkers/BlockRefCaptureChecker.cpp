@@ -41,6 +41,7 @@ class BlockRefCaptureChecker : public Checker< check::PreCall > {
 
   /// Generate a bug for the given variable.
   void reportRefCaptureBug(const VarDecl *VD,
+                           SmallVector<VarDecl*, 4> ProblemDeclChain,
                            CheckerContext &C) const;
 public:
   BlockRefCaptureChecker();
@@ -115,7 +116,7 @@ void BlockRefCaptureChecker::checkPreCall(const CallEvent &Call,
 
 // Figure out if a VarDecl is a problem, and return the problem VD if so
 // Return NULL if the VarDecl is no issue.
-static const bool sFindProblemVarDecl(const VarDecl *VD, SmallVector<VarDecl*, 4>& ProblemDeclChain)
+static bool sFindProblemVarDecl(const VarDecl *VD, SmallVector<VarDecl*, 4>& ProblemDeclChain)
 {
   if (!VD)
     return false;
