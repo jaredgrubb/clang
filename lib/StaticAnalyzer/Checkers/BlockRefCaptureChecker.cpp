@@ -244,7 +244,7 @@ PathDiagnosticPiece *BlockRefReportVisitor::VisitNode(const ExplodedNode *N,
   if (!DS) {
     llvm::outs().changeColor(llvm::raw_ostream::GREEN) << " ------- " << ++count << " --------\n";
     llvm::outs().changeColor(llvm::raw_ostream::GREEN) << "     ------- PostStmt, but not a DeclStmt\n";
-    return false;
+    return NULL;
   }
 
   ProgramStateRef state = N->getState();
@@ -256,7 +256,7 @@ PathDiagnosticPiece *BlockRefReportVisitor::VisitNode(const ExplodedNode *N,
   llvm::outs().changeColor(llvm::raw_ostream::GREEN) << "       ------- Decl\n";
   llvm::outs().resetColor();
   const Decl &D = N->getCodeDecl();
-  D.dump();
+  DS->dump();
 
   llvm::outs().changeColor(llvm::raw_ostream::GREEN) << "       ------- Progam state\n";
   llvm::outs().resetColor();
