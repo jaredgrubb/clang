@@ -62,6 +62,7 @@ public:
   virtual void Profile(llvm::FoldingSetNodeID &ID) const {
     static int x = 0;
     ID.AddPointer(&x);
+    ID.AddPointer(Var);
   }
 
   virtual PathDiagnosticPiece *VisitNode(const ExplodedNode *N,
