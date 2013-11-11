@@ -293,7 +293,7 @@ PathDiagnosticPiece *BlockRefReportVisitor::VisitNode(const ExplodedNode *N,
   // PathDiagnosticLocation Pos(Var, BRC.getSourceManager());
   // return new PathDiagnosticEventPiece(Pos, "This is a nice spot.");
   PathDiagnosticLocation Pos = PathDiagnosticLocation::create(ProgLoc, BRC.getSourceManager());
-  PathDiagnosticPiece* ret = new PathDiagnosticEventPiece(Pos, "This is a nice spot.");
+  PathDiagnosticEventPiece* ret = new PathDiagnosticEventPiece(Pos, "This is a nice spot.");
   ret->setPrunable(false, true);
   return ret;
 
