@@ -198,9 +198,6 @@ void BlockRefCaptureChecker::checkBlockForBadCapture(const BlockExpr *BE, Checke
       continue;
     }
 
-    llvm::outs().changeColor(llvm::raw_ostream::GREEN) << " --- Chain has " << ProbDeclChain.size() << " elements --------\n";
-
-
     reportRefCaptureBug(VD, ProbDeclChain,  C);
   }
 }
@@ -246,16 +243,16 @@ void ento::registerBlockRefCaptureChecker(CheckerManager &mgr) {
 }
 
 
-static bool IsVarDeclFor(const VarDecl* VD, const ExplodedNode *N)
+static const DeclStmt* IsVarDeclFor(const VarDecl* VD, const ExplodedNode *N)
 {
   Optional<PostStmt> P = N->getLocationAs<PostStmt>();
   if (!P) {
-    return false;
+    return NULL;
   }
 
   const DeclStmt *DS = P->getStmtAs<DeclStmt>();
   if (!DS) {
-    return false;
+    return NULL;
   }
 
   for(DeclStmt::const_decl_iterator  i = DS->decl_begin(), 
@@ -266,11 +263,11 @@ static bool IsVarDeclFor(const VarDecl* VD, const ExplodedNode *N)
     if (VD == *i) {
       llvm::outs().changeColor(llvm::raw_ostream::GREEN) << "       ------- Found VarDecl\n";
       llvm::outs().resetColor();
-      return true;
+      return DS;
     }
   }
 
-  return false;
+  return NULL;
 }
 
 
@@ -281,18 +278,19 @@ PathDiagnosticPiece *BlockRefReportVisitor::VisitNode(const ExplodedNode *N,
 {
   llvm::outs().changeColor(llvm::raw_ostream::GREEN) << " ------- " << ++count << " --------\n";
 
-  if (!IsVarDeclFor(Var, N))
+  const DeclStmt* DS = IsVarDeclFor(Var, N);
+  if (!DS)
     return NULL;
 
   if (IsVarDeclFor(Var, PrevN))
     return NULL;
 
   llvm::outs().changeColor(llvm::raw_ostream::RED) << "       ------- Returning a diag piece\n";
-  PathDiagnosticLocation Pos(Var, BRC.getSourceManager());
-  return new PathDiagnosticEventPiece(Pos, "This is a nice spot.");
-  // PathDiagnosticLocation Pos(ArgExpr, BRC.getSourceManager(),
-  //                            N->getLocationContext());
+  // PathDiagnosticLocation Pos(Var, BRC.getSourceManager());
   // return new PathDiagnosticEventPiece(Pos, "This is a nice spot.");
+  PathDiagnosticLocation Pos(Var->getInit(), BRC.getSourceManager(),
+                             N->getLocationContext());
+  return new PathDiagnosticEventPiece(Pos, "This is a nice spot.");
 
 
   
