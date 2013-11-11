@@ -260,13 +260,15 @@ PathDiagnosticPiece *BlockRefReportVisitor::VisitNode(const ExplodedNode *N,
     return NULL;
   }
 
+  Var->dump();
+
   for(DeclStmt::const_decl_iterator  i = DS->decl_begin(), 
-      e = DS->decl_end;
+      e = DS->decl_end();
       i != e;
       ++i)
   {
     if (Var == *i) {
-      llvm::outs().changeColor(llvm::raw_ostream::RED) << " ------- FOUND " << Var->dump() << " --------\n";
+      llvm::outs().changeColor(llvm::raw_ostream::RED) << " ------- FOUND! --------\n";
       break;
     }
   }
