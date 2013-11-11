@@ -260,6 +260,17 @@ PathDiagnosticPiece *BlockRefReportVisitor::VisitNode(const ExplodedNode *N,
     return NULL;
   }
 
+  for(DeclStmt::const_decl_iterator  i = DS->decl_begin(), 
+      e = DS->decl_end;
+      i != e;
+      ++i)
+  {
+    if (Var == *i) {
+      llvm::outs().changeColor(llvm::raw_ostream::RED) << " ------- FOUND " << Var->dump() << " --------\n";
+      break;
+    }
+  }
+  
   ProgramStateRef state = N->getState();
   ProgramStateRef statePrev = PrevN->getState();
 
