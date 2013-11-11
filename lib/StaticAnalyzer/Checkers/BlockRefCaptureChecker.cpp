@@ -285,6 +285,15 @@ PathDiagnosticPiece *BlockRefReportVisitor::VisitNode(const ExplodedNode *N,
 
   if (IsVarDeclFor(Var, PrevN))
     return NULL;
+
+
+  PathDiagnosticLocation Pos(Var, BRC.getSourceManager());
+  return new PathDiagnosticEventPiece(Pos, "This is a nice spot.");
+  // PathDiagnosticLocation Pos(ArgExpr, BRC.getSourceManager(),
+  //                            N->getLocationContext());
+  // return new PathDiagnosticEventPiece(Pos, "This is a nice spot.");
+
+
   
   ProgramStateRef state = N->getState();
   ProgramStateRef statePrev = PrevN->getState();
