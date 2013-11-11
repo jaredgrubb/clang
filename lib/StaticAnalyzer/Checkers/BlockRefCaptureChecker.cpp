@@ -139,6 +139,7 @@ static bool sFindProblemVarDecl(const VarDecl *VD, SmallVector<VarDecl const*, 4
   // but we take the pessimistic view that it probably is pointing to some stack var
   // and will report it.
   if (dyn_cast<ParmVarDecl>(VD)) {
+    ProblemDeclChain.push_back(VD);
     return true;
   }
 
@@ -196,6 +197,9 @@ void BlockRefCaptureChecker::checkBlockForBadCapture(const BlockExpr *BE, Checke
       continue;
     }
 
+    llvm::outs().changeColor(llvm::raw_ostream::GREEN) << " --- Chain has " << ProbDeclChain.size() << " elements --------\n";
+
+
     reportRefCaptureBug(VD, ProbDeclChain,  C);
   }
 }
@@ -240,27 +244,17 @@ void ento::registerBlockRefCaptureChecker(CheckerManager &mgr) {
 }
 
 
-
-PathDiagnosticPiece *BlockRefReportVisitor::VisitNode(const ExplodedNode *N,
-                                                      const ExplodedNode *PrevN,
-                                                      BugReporterContext &BRC,
-                                                      BugReport &BR) 
+static bool IsVarDeclFor(const VarDecl* VD, const ExplodedNode *N)
 {
   Optional<PostStmt> P = N->getLocationAs<PostStmt>();
   if (!P) {
-    llvm::outs().changeColor(llvm::raw_ostream::GREEN) << " ------- " << ++count << " --------\n";
-    llvm::outs().changeColor(llvm::raw_ostream::GREEN) << "     ------- Not a PostStmt\n";
-    return NULL;
+    return false;
   }
 
   const DeclStmt *DS = P->getStmtAs<DeclStmt>();
   if (!DS) {
-    llvm::outs().changeColor(llvm::raw_ostream::GREEN) << " ------- " << ++count << " --------\n";
-    llvm::outs().changeColor(llvm::raw_ostream::GREEN) << "     ------- PostStmt, but not a DeclStmt\n";
-    return NULL;
+    return false;
   }
-
-  Var->dump();
 
   for(DeclStmt::const_decl_iterator  i = DS->decl_begin(), 
       e = DS->decl_end();
@@ -268,10 +262,24 @@ PathDiagnosticPiece *BlockRefReportVisitor::VisitNode(const ExplodedNode *N,
       ++i)
   {
     if (Var == *i) {
-      llvm::outs().changeColor(llvm::raw_ostream::RED) << " ------- FOUND! --------\n";
-      break;
+      return true;
     }
   }
+
+  return false;
+}
+
+
+PathDiagnosticPiece *BlockRefReportVisitor::VisitNode(const ExplodedNode *N,
+                                                      const ExplodedNode *PrevN,
+                                                      BugReporterContext &BRC,
+                                                      BugReport &BR) 
+{
+  if (!IsVarDeclFor(Var, N))
+    return NULL;
+
+  if (IsVarDeclFor(Var, PrevN))
+    return NULL;
   
   ProgramStateRef state = N->getState();
   ProgramStateRef statePrev = PrevN->getState();
