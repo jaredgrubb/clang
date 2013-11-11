@@ -285,19 +285,22 @@ PathDiagnosticPiece *BlockRefReportVisitor::VisitNode(const ExplodedNode *N,
   if (IsVarDeclFor(Var, PrevN))
     return NULL;
 
+  ProgramStateRef state = N->getState();
+  ProgramPoint ProgLoc = N->getLocation();
+
+
   llvm::outs().changeColor(llvm::raw_ostream::RED) << "       ------- Returning a diag piece\n";
   // PathDiagnosticLocation Pos(Var, BRC.getSourceManager());
   // return new PathDiagnosticEventPiece(Pos, "This is a nice spot.");
-  PathDiagnosticLocation Pos(Var->getInit(), BRC.getSourceManager(),
-                             N->getLocationContext());
+  PathDiagnosticLocation Pos(ProgLoc, BRC.getSourceManager())
   return new PathDiagnosticEventPiece(Pos, "This is a nice spot.");
+  // PathDiagnosticLocation Pos = PathDiagnosticLocation::create(Var->getInit(), BRC.getSourceManager(),
+  //                            N->getLocationContext());
+  // return new PathDiagnosticEventPiece(Pos, "This is a nice spot.");
 
 
   
-  ProgramStateRef state = N->getState();
   ProgramStateRef statePrev = PrevN->getState();
-
-  ProgramPoint ProgLoc = N->getLocation();
 
   llvm::outs().changeColor(llvm::raw_ostream::GREEN) << "       ------- Decl (looking for " << Var << "\n";
   llvm::outs().resetColor();
