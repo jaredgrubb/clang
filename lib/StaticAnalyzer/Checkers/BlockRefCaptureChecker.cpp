@@ -286,7 +286,7 @@ PathDiagnosticPiece *BlockRefReportVisitor::VisitNode(const ExplodedNode *N,
   if (IsVarDeclFor(Var, PrevN))
     return NULL;
 
-
+  llvm::outs().changeColor(llvm::raw_ostream::RED) << "       ------- Returning a diag piece\n";
   PathDiagnosticLocation Pos(Var, BRC.getSourceManager());
   return new PathDiagnosticEventPiece(Pos, "This is a nice spot.");
   // PathDiagnosticLocation Pos(ArgExpr, BRC.getSourceManager(),
