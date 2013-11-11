@@ -231,6 +231,7 @@ void BlockRefCaptureChecker::reportRefCaptureBug(
   {
     Bug->addVisitor(new BlockRefReportVisitor(*i));    
   }
+  Bug->disablePathPruning();
   C.emitReport(Bug);
 }
 
