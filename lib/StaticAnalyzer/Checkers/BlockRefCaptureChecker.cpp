@@ -262,6 +262,8 @@ static bool IsVarDeclFor(const VarDecl* VD, const ExplodedNode *N)
       ++i)
   {
     if (VD == *i) {
+      llvm::outs().changeColor(llvm::raw_ostream::GREEN) << "       ------- Found VarDecl\n";
+      llvm::outs().resetColor();
       return true;
     }
   }
@@ -275,6 +277,8 @@ PathDiagnosticPiece *BlockRefReportVisitor::VisitNode(const ExplodedNode *N,
                                                       BugReporterContext &BRC,
                                                       BugReport &BR) 
 {
+  llvm::outs().changeColor(llvm::raw_ostream::GREEN) << " ------- " << ++count << " --------\n";
+
   if (!IsVarDeclFor(Var, N))
     return NULL;
 
@@ -286,7 +290,6 @@ PathDiagnosticPiece *BlockRefReportVisitor::VisitNode(const ExplodedNode *N,
 
   ProgramPoint ProgLoc = N->getLocation();
 
-  llvm::outs().changeColor(llvm::raw_ostream::GREEN) << " ------- " << ++count << " --------\n";
   llvm::outs().changeColor(llvm::raw_ostream::GREEN) << "       ------- Decl (looking for " << Var << "\n";
   llvm::outs().resetColor();
   //const Decl &D = N->getCodeDecl();
