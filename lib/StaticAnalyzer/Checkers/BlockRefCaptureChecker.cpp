@@ -115,53 +115,57 @@ void BlockRefCaptureChecker::checkPreCall(const CallEvent &Call,
 
 // Figure out if a VarDecl is a problem, and return the problem VD if so
 // Return NULL if the VarDecl is no issue.
-static const VarDecl *sFindProblemVarDecl(const VarDecl *VD)
+static const bool sFindProblemVarDecl(const VarDecl *VD, SmallVector<VarDecl*, 4>& ProblemDeclChain)
 {
   if (!VD)
-    return NULL;
+    return false;
 
   // Only local variables can cause a problem. Statics/globals are fine.
   if (!VD->hasLocalStorage())
-    return NULL;
+    return false;
 
   // Local '__block' variables are acceptable too.
   if (VD->getAttr<BlocksAttr>() || !VD->hasLocalStorage())
-    return NULL;
+    return false;
 
   // Local variables of non-reference type are the main problem we are searching for.
-  if (!VD->getType()->isReferenceType())
-    return VD;
+  if (!VD->getType()->isReferenceType()) {
+    ProblemDeclChain.push_back(VD);
+    return true;    
+  }
 
   // In general, we dont know if a passed-in parameter references a local or global, 
   // but we take the pessimistic view that it probably is pointing to some stack var
   // and will report it.
   if (dyn_cast<ParmVarDecl>(VD)) {
-    return VD;
+    return true;
   }
 
   // VD is a local reference to some expression.
   Expr const* Init = VD->getInit();
   if (!Init)
-    return NULL;
+    return false;
 
   // Strip any implicit casts (eg, upcasting), since these do not affect capture analysis.
   Init = Init->IgnoreImpCasts();
 
   // Reference-to-a-reference: safety depends on the safety of THAT reference.
   if (const DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(Init)) {
-    return sFindProblemVarDecl(dyn_cast<VarDecl>(DRE->getDecl()));      
+    ProblemDeclChain.push_back(VD);
+    return sFindProblemVarDecl(dyn_cast<VarDecl>(DRE->getDecl()), ProblemDeclChain);      
   }
 
   // Reference to temporary expression (eg return value) cant have local storage.
   if (const MaterializeTemporaryExpr *MTE = dyn_cast<MaterializeTemporaryExpr>(Init)) {
     if (MTE->getStorageDuration()==SD_Automatic) {
-      return VD;
+      ProblemDeclChain.push_back(VD);
+      return true;
     }
-    return NULL;
+    return false;
   }
 
   // Any other case is not handled, so we assume it's safe.
-  return NULL;
+  return false;
 }
 
 void BlockRefCaptureChecker::checkBlockForBadCapture(const BlockExpr *BE, CheckerContext &C) const {
@@ -185,8 +189,9 @@ void BlockRefCaptureChecker::checkBlockForBadCapture(const BlockExpr *BE, Checke
       continue;
     }
 
-    const VarDecl *ProbVD = sFindProblemVarDecl(VD);
-    if (!ProbVD) {
+    SmallVector<VarDecl*, 4> ProblemDecl;
+    bool HasProblem = sFindProblemVarDecl(VD, ProblemDecl);
+    if (!HasProblem) {
       continue;
     }
 
@@ -196,6 +201,7 @@ void BlockRefCaptureChecker::checkBlockForBadCapture(const BlockExpr *BE, Checke
 
 void BlockRefCaptureChecker::reportRefCaptureBug(
                          const VarDecl *VD,
+                         SmallVector<VarDecl*, 4> ProblemDeclChain,
                          CheckerContext &C) const
 {
   ExplodedNode *N = C.addTransition();
@@ -211,8 +217,14 @@ void BlockRefCaptureChecker::reportRefCaptureBug(
   //         VD, C.getSourceManager());
 
   BugReport *Bug = new BugReport(*BT_RefCaptureBug, os.str(), N);
-  //Bug->addRange(Loc);
-  Bug->addVisitor(new BlockRefReportVisitor(VD));
+  
+  for(SmallVector<VarDecl*, 4>::const_iterator i = ProblemDeclChain.begin(),
+    e = ProblemDeclChain.end();
+    i != e;
+    ++i) 
+  {
+    Bug->addVisitor(new BlockRefReportVisitor(*i));    
+  }
   C.emitReport(Bug);
 }
 
