@@ -31,7 +31,7 @@ class BlockRefCaptureChecker : public Checker< check::PreCall > {
 
   mutable IdentifierInfo *II_dispatch_async;
 
-  OwningPtr<BugType> BT_RefCaptureBug;
+  std::unique_ptr<BugType> BT_RefCaptureBug;
 
   void initIdentifierInfo(ASTContext &Ctx) const;
 
@@ -53,7 +53,8 @@ BlockRefCaptureChecker::BlockRefCaptureChecker()
 : II_dispatch_async(0) 
 {
   // Initialize the bug types.
-  BT_RefCaptureBug.reset(new BugType("Capture-by-reference warning",
+  BT_RefCaptureBug.reset(new BugType(this, 
+                                    "Capture-by-reference warning",
                                     "Block capture error"));
 }
 
